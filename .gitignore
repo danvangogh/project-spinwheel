@@ -1,0 +1,5 @@
+# Personal runtime data — task list and completion log live only on this machine.
+data/
+
+node_modules/
+.DS_Store

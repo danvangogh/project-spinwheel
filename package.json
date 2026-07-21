@@ -1,0 +1,9 @@
+{
+  "name": "project-spinwheel",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Spin a wheel to decide what to work on in a given time slot",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

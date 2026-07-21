@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spinwheel</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header>
+    <h1>Spinwheel</h1>
+    <nav>
+      <button class="tab active" data-view="spin">Spin</button>
+      <button class="tab" data-view="manage">Manage</button>
+      <button class="tab" data-view="stats">Stats</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- Spin -->
+    <section id="view-spin" class="view active">
+      <div class="slots" id="slot-picker"></div>
+      <div class="slots categories" id="category-picker"></div>
+
+      <div class="wheel-area">
+        <div class="wheel-wrap">
+          <div class="pointer"></div>
+          <canvas id="wheel" width="440" height="440"></canvas>
+        </div>
+        <p id="wheel-empty" class="empty hidden">No tasks in this slot yet — add some under <strong>Manage</strong>.</p>
+        <button id="spin-btn" class="primary big">Spin</button>
+        <p id="pick-hint" class="hint">or click a slice to pick it yourself</p>
+      </div>
+
+      <div id="result" class="result hidden">
+        <p class="result-label">Work on</p>
+        <h2 id="result-task"></h2>
+        <div id="timer" class="timer"></div>
+        <div class="result-actions">
+          <button id="timer-start" class="primary">Start timer</button>
+          <button id="btn-skip" class="ghost">Skip &amp; re-spin</button>
+        </div>
+        <p id="timer-note" class="hint hidden">logs as a success when the timer reaches 00:00</p>
+      </div>
+
+      <div id="done-today" class="done-today"></div>
+    </section>
+
+    <!-- Manage -->
+    <section id="view-manage" class="view">
+      <details class="panel accordion" id="slots-panel">
+        <summary><h3>Time slots</h3><span id="slot-summary" class="count"></span></summary>
+        <div class="accordion-body">
+          <ul id="slot-list" class="list"></ul>
+          <form id="slot-form" class="inline-form">
+            <input id="slot-label" type="text" placeholder="Label (e.g. 2 hours)" required>
+            <input id="slot-minutes" type="number" min="1" max="1440" placeholder="Minutes" required>
+            <button class="primary" type="submit">Add slot</button>
+          </form>
+        </div>
+      </details>
+
+      <div class="panel">
+        <h3>Tasks</h3>
+        <div id="task-groups"></div>
+        <form id="task-form" class="inline-form">
+          <input id="task-name" type="text" placeholder="Task name" required>
+          <input id="task-category" type="text" placeholder="Category" list="category-options" required>
+          <datalist id="category-options"></datalist>
+          <select id="task-slot"></select>
+          <button class="primary" type="submit">Add task</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- Stats -->
+    <section id="view-stats" class="view">
+      <div id="stats-summary" class="stat-row"></div>
+      <div class="panel">
+        <h3>Per category</h3>
+        <table id="stats-categories" class="table"></table>
+      </div>
+      <div class="panel">
+        <h3>Per task</h3>
+        <table id="stats-table" class="table"></table>
+      </div>
+      <div class="panel">
+        <h3>Recent</h3>
+        <ul id="stats-recent" class="list"></ul>
+      </div>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>

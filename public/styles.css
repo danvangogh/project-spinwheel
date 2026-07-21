@@ -1,0 +1,357 @@
+/* ---------------------------------------------------------------------------
+   Ember — warm editorial. Cream paper, ink outlines, hard offset shadows,
+   serif display type, bold flat wheel colours.
+
+   The canvas wheel can't read CSS directly, so app.js pulls the --seg-* /
+   --wheel-* / --hub-* values from here at draw time. Restyle the wheel by
+   editing these variables.
+--------------------------------------------------------------------------- */
+
+:root {
+  color-scheme: light;
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  --font-display: Georgia, "Times New Roman", serif;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --border-w: 2px;
+
+  --bg: #f6f0e4;
+  --panel: #fffdf7;
+  --border: #1d1a16;
+  --border-strong: #1d1a16;
+  --text: #1d1a16;
+  --muted: #6e675c;
+  --accent: #e4572e;
+  --accent-ink: #fffdf7;
+  --primary-bg: #e4572e;
+  --primary-shadow: none;
+  --good: #2e7d5b;
+  --bad: #c0392b;
+  --input-bg: #fffdf7;
+  --shadow: 5px 5px 0 #1d1a16;
+  --btn-shadow: 3px 3px 0 #1d1a16;
+  --hairline: #e5dcc9;
+
+  --pointer: #1d1a16;
+  --wheel-filter: drop-shadow(6px 8px 0 rgba(29, 26, 22, 0.9));
+  --wheel-stroke: #1d1a16;
+  --wheel-stroke-w: 2.5;
+  --wheel-label: #17140f;
+  /* Regular weight — bold ink on these saturated fills reads heavy and muddy. */
+  --wheel-label-weight: 400;
+  --wheel-hover: rgba(255, 255, 255, 0.35);
+  --wheel-empty: #efe7d6;
+  --wheel-empty-stroke: #1d1a16;
+  --hub-fill: #f6f0e4;
+  --hub-stroke: #1d1a16;
+  --seg-1: #e4572e; --seg-2: #29a19c; --seg-3: #f4b41a; --seg-4: #8464c6;
+  --seg-5: #db5a8c; --seg-6: #4e9f5d; --seg-7: #4a7fd4; --seg-8: #c97e2c;
+}
+
+/* ---------------------------------------------------------------------------
+   Base
+--------------------------------------------------------------------------- */
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.55 var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 32px;
+}
+
+h1 {
+  font-family: var(--font-display);
+  font-size: 21px;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+h3 {
+  margin: 0 0 14px;
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 600;
+}
+
+main { max-width: 820px; margin: 0 auto; padding: 24px 28px 56px; }
+
+.view { display: none; }
+.view.active { display: block; }
+.hidden { display: none !important; }
+
+/* ---------------------------------------------------------------------------
+   Buttons
+--------------------------------------------------------------------------- */
+
+button {
+  font: inherit;
+  font-weight: 500;
+  border: var(--border-w) solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  padding: 9px 17px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  box-shadow: var(--btn-shadow);
+  transition: background 0.15s, border-color 0.15s, transform 0.06s, box-shadow 0.15s, color 0.15s;
+}
+button:hover:not(:disabled) { border-color: var(--border-strong); }
+button:active:not(:disabled) { transform: translate(1px, 1px); box-shadow: none; }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+button.primary {
+  background: var(--primary-bg);
+  border-color: var(--border);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+button.primary:hover:not(:disabled) { filter: brightness(1.07); }
+
+button.danger { background: var(--bad); border-color: var(--border); color: #fff; font-weight: 600; }
+button.ghost { background: transparent; color: var(--muted); box-shadow: none; }
+button.ghost:hover:not(:disabled) { color: var(--text); }
+
+button.big {
+  padding: 15px 52px;
+  font-size: 17px;
+  border-radius: calc(var(--radius-sm) + 4px);
+}
+
+/* Nav — segmented pill */
+nav {
+  display: flex;
+  gap: 4px;
+  background: var(--panel);
+  border: var(--border-w) solid var(--border);
+  border-radius: 999px;
+  padding: 4px;
+  box-shadow: var(--btn-shadow);
+}
+.tab { border: 0; background: transparent; border-radius: 999px; padding: 7px 18px; box-shadow: none; color: var(--muted); }
+.tab:hover:not(.active) { color: var(--text); border-color: transparent; }
+.tab.active { background: var(--primary-bg); color: var(--accent-ink); font-weight: 600; }
+
+/* ---------------------------------------------------------------------------
+   Spin view
+--------------------------------------------------------------------------- */
+
+.slots { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 18px; }
+.slots button { border-radius: 999px; }
+.slots button.selected { background: var(--primary-bg); border-color: var(--border); color: var(--accent-ink); font-weight: 600; }
+
+.slots.categories { margin-bottom: 28px; }
+.slots.categories button { padding: 6px 14px; font-size: 13px; }
+
+.wheel-area { display: flex; flex-direction: column; align-items: center; gap: 26px; }
+.wheel-wrap { position: relative; width: 460px; max-width: 100%; }
+#wheel { width: 100%; height: auto; display: block; filter: var(--wheel-filter); }
+
+.pointer {
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0; height: 0;
+  border-left: 13px solid transparent;
+  border-right: 13px solid transparent;
+  border-top: 26px solid var(--pointer);
+  z-index: 2;
+}
+
+.empty { color: var(--muted); text-align: center; }
+.hint { color: var(--muted); font-size: 13px; text-align: center; margin: -14px 0 0; }
+
+/* Result */
+.result { margin-top: 36px; text-align: center; border-top: var(--border-w) solid var(--border); padding-top: 32px; }
+.result-label { color: var(--muted); margin: 0 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 600; }
+.result h2 { font-family: var(--font-display); margin: 0 0 16px; font-size: 30px; letter-spacing: -0.02em; }
+.timer {
+  font-size: 58px;
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  margin-bottom: 24px;
+}
+.timer.overtime { color: var(--bad); }
+.timer.idle { color: var(--muted); }
+.timer.celebrate {
+  color: var(--good);
+  font-family: var(--font-display);
+  animation: pop 0.5s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+@keyframes pop {
+  0% { transform: scale(0.5); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.confetti { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 10; }
+
+/* Today's completed tasks, under the wheel */
+.done-today {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  align-items: center; justify-content: center;
+  margin-top: 36px;
+}
+.done-today:empty { display: none; }
+.done-label {
+  color: var(--muted); font-size: 12px;
+  text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600;
+  margin-right: 4px;
+}
+.done-chip {
+  font-size: 13px; padding: 4px 12px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--panel);
+  color: var(--good); font-weight: 500;
+}
+.result-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 12px; }
+.result-actions:last-child { margin-bottom: 0; }
+
+/* ---------------------------------------------------------------------------
+   Panels, lists, accordions
+--------------------------------------------------------------------------- */
+
+.panel {
+  background: var(--panel);
+  border: var(--border-w) solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px 24px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow);
+}
+details.panel { padding: 16px 24px; }
+
+.list { list-style: none; margin: 0 0 14px; padding: 0; }
+.list li {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--hairline);
+}
+.list li:last-child { border-bottom: 0; }
+.list .meta { color: var(--muted); font-size: 13px; }
+
+.group { margin-bottom: 10px; }
+.group h4 { margin: 0; font-family: var(--font-display); font-size: 14px; font-weight: 600; color: var(--text); }
+
+.accordion > summary {
+  display: flex; align-items: center; gap: 10px;
+  cursor: pointer; list-style: none;
+  padding: 6px 0; border-radius: 6px;
+  user-select: none;
+}
+.accordion > summary::-webkit-details-marker { display: none; }
+.accordion > summary:hover h3, .accordion > summary:hover h4 { color: var(--accent); }
+
+.accordion > summary::before {
+  content: '';
+  width: 0; height: 0;
+  border-left: 5px solid var(--muted);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transition: transform 0.15s;
+  flex: none;
+}
+.accordion[open] > summary::before { transform: rotate(90deg); }
+
+.accordion > summary h3 { margin: 0; }
+.accordion > summary .count { color: var(--muted); font-size: 12px; margin-left: auto; font-variant-numeric: tabular-nums; }
+
+.accordion-body { padding-top: 12px; }
+.group .accordion-body { padding-left: 15px; }
+
+/* Forms */
+.inline-form { display: flex; gap: 8px; flex-wrap: wrap; }
+.inline-form input, .inline-form select {
+  font: inherit; flex: 1; min-width: 120px;
+  background: var(--input-bg); color: var(--text);
+  border: var(--border-w) solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 9px 13px;
+  transition: border-color 0.15s;
+}
+.inline-form input::placeholder { color: var(--muted); }
+.inline-form input:focus, .inline-form select:focus { outline: none; border-color: var(--accent); }
+
+.cat-edit {
+  font: inherit; font-size: 13px; width: 150px; margin-left: auto;
+  background: var(--input-bg); color: var(--muted);
+  border: 1px solid #cfc4ab; border-radius: 8px; padding: 4px 10px;
+}
+.cat-edit:focus { outline: none; border-color: var(--accent); color: var(--text); }
+
+.del { background: transparent; border-color: transparent; color: var(--muted); padding: 4px 8px; box-shadow: none; }
+.del:hover:not(:disabled) { color: var(--bad); border-color: transparent; }
+
+/* ---------------------------------------------------------------------------
+   Stats
+--------------------------------------------------------------------------- */
+
+.stat-row { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 20px; }
+.stat {
+  flex: 1; min-width: 128px;
+  background: var(--panel);
+  border: var(--border-w) solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  box-shadow: var(--shadow);
+}
+.stat .value {
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.stat .label { color: var(--muted); font-size: 13px; margin-top: 2px; }
+
+.table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.table th, .table td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--hairline); }
+.table th { color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
+.table tr:last-child td { border-bottom: 0; }
+
+.table th.num, .table td.num { text-align: right; width: 84px; }
+.table th.rate, .table td.rate { width: 68px; }
+.table td.num { font-variant-numeric: tabular-nums; }
+.table td:first-child { width: auto; }
+
+.badge { font-size: 12px; padding: 3px 10px; border-radius: 999px; font-weight: 500; }
+.badge.success { background: color-mix(in srgb, var(--good) 16%, transparent); color: var(--good); }
+.badge.fail { background: color-mix(in srgb, var(--bad) 15%, transparent); color: var(--bad); }
+.badge.skip { background: color-mix(in srgb, var(--muted) 16%, transparent); color: var(--muted); }
+
+/* ---------------------------------------------------------------------------
+   Responsive
+--------------------------------------------------------------------------- */
+
+@media (max-width: 560px) {
+  main { padding: 16px 18px 40px; }
+  header { padding: 14px 18px; flex-direction: column; align-items: stretch; }
+  nav { justify-content: center; }
+  .timer { font-size: 46px; }
+
+  .panel, details.panel { padding: 16px; }
+  .group .accordion-body { padding-left: 8px; }
+
+  /* Task rows: the name gets its own line; the category input and Remove
+     button share the line below instead of squeezing in beside it. */
+  #task-groups .list li { flex-wrap: wrap; row-gap: 6px; }
+  #task-groups .list li > span:first-child { flex: 1 1 100%; }
+  .cat-edit { margin-left: 0; flex: 1; width: auto; }
+
+  /* Narrower numeric columns so task/category names keep some room. */
+  .table th.num, .table td.num { width: 54px; padding-left: 4px; }
+  .table th.rate, .table td.rate { width: 48px; }
+}
