@@ -30,6 +30,7 @@ const LABEL_INSET = 16;   // gap between the rim and the start of a label
 const DEFAULT_SETTINGS = {
   noRepeatToday: false,       // exclude tasks already logged today from the wheel
   selection: 'random',        // 'random' | 'cycle' (even split — no repeats until all seen)
+  onboarded: false,           // first-run tour completed or skipped
 };
 
 // selectedCategories empty means "all" — no filtering.
@@ -768,11 +769,6 @@ function renderWheelArea() {
 }
 
 function renderManage() {
-  // Welcome walkthrough for accounts with no tasks yet. Derived from the data
-  // rather than a stored "seen" flag — it retires itself the moment the first
-  // task exists, and reappears only if the wheel is ever emptied out.
-  $('#welcome').classList.toggle('hidden', state.tasks.length > 0);
-
   // Slots
   $('#slot-summary').textContent = `${state.slots.length} chunk${state.slots.length === 1 ? '' : 's'}`;
   const slotList = $('#slot-list');
@@ -1018,6 +1014,107 @@ document.querySelectorAll('.tab').forEach((tab) => {
 
 window.addEventListener('resize', () => drawWheel());
 
+/* ---------- first-run tour ----------
+   Floating cards anchored to the UI they explain, with the rest of the page
+   dimmed and the target spotlighted. Completion (or skipping) persists to
+   settings so the tour runs once per account. */
+
+const TOUR_STEPS = [
+  {
+    view: 'manage',
+    target: '#slots-panel',
+    prepare: () => { $('#slots-panel').open = true; },
+    title: 'Pick your time chunkz',
+    text: 'These are the blocks of time you actually get — 20 minutes before a meeting, an hour on a quiet morning. Keep the defaults or add your own.',
+  },
+  {
+    view: 'manage',
+    target: '#tasks-panel',
+    title: 'Add tasks for each chunk',
+    text: 'Give every task a category (Health, Work, Home…) and the chunk it fits in. A few tasks per chunk keeps the wheel interesting.',
+  },
+  {
+    view: 'manage',
+    target: 'nav',
+    title: 'Then come spin',
+    text: 'Whenever a chunk of time opens up, head to Spin, pick the chunk you’ve got, and do exactly what the wheel says.',
+  },
+];
+
+let tourStep = -1;
+let tourNodes = null;
+
+function startTour() {
+  if (tourNodes) return;
+  const overlay = document.createElement('div');
+  overlay.className = 'tour-overlay';
+  const card = document.createElement('div');
+  card.className = 'tour-card';
+  document.body.append(overlay, card);
+  tourNodes = { overlay, card };
+  window.addEventListener('resize', placeTourCard);
+  showTourStep(0);
+}
+
+function endTour() {
+  if (!tourNodes) return;
+  tourNodes.overlay.remove();
+  tourNodes.card.remove();
+  tourNodes = null;
+  tourStep = -1;
+  clearTourSpot();
+  window.removeEventListener('resize', placeTourCard);
+  state.settings.onboarded = true;
+  api.putState();
+}
+
+function clearTourSpot() {
+  document.querySelectorAll('.tour-spot').forEach((el) => el.classList.remove('tour-spot'));
+}
+
+function showTourStep(i) {
+  tourStep = i;
+  const step = TOUR_STEPS[i];
+  switchView(step.view);
+  if (step.prepare) step.prepare();
+  clearTourSpot();
+
+  const target = document.querySelector(step.target);
+  target.classList.add('tour-spot');
+  target.scrollIntoView({ block: 'center' });
+
+  const last = i === TOUR_STEPS.length - 1;
+  tourNodes.card.innerHTML = `
+    <div class="tour-count">${i + 1} of ${TOUR_STEPS.length}</div>
+    <h4>${step.title}</h4>
+    <p>${step.text}</p>
+    <div class="tour-actions">
+      ${last ? '' : '<button class="ghost" id="tour-skip">Skip tour</button>'}
+      <button class="primary" id="tour-next">${last ? 'Got it' : 'Next'}</button>
+    </div>`;
+  $('#tour-next').onclick = () => (last ? endTour() : showTourStep(i + 1));
+  const skip = $('#tour-skip');
+  if (skip) skip.onclick = endTour;
+  placeTourCard();
+}
+
+// Below the target when there's room, above it otherwise, clamped to the viewport.
+function placeTourCard() {
+  if (!tourNodes || tourStep < 0) return;
+  const target = document.querySelector(TOUR_STEPS[tourStep].target);
+  const r = target.getBoundingClientRect();
+  const card = tourNodes.card;
+  const cw = Math.min(340, innerWidth - 32);
+  card.style.width = `${cw}px`;
+  const ch = card.offsetHeight;
+
+  let top = r.bottom + 14;
+  if (top + ch > innerHeight - 16) top = Math.max(16, r.top - ch - 14);
+  const left = Math.min(Math.max(16, r.left + r.width / 2 - cw / 2), innerWidth - cw - 16);
+  card.style.top = `${top}px`;
+  card.style.left = `${left}px`;
+}
+
 /* Settings modal */
 
 function renderSettings() {
@@ -1127,12 +1224,9 @@ async function loadApp() {
   renderStats();
   renderDoneToday();
 
-  // A brand-new wheel has nothing to spin — take first-time users straight to
-  // Manage, where the welcome walkthrough and the add-task form are.
-  if (state.tasks.length === 0) {
-    switchView('manage');
-    $('#slots-panel').open = true;
-  }
+  // A brand-new wheel has nothing to spin — walk first-time users through
+  // setup with the guided tour.
+  if (state.tasks.length === 0 && !state.settings.onboarded) startTour();
 }
 
 (async function init() {

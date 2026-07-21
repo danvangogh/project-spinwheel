@@ -85,15 +85,6 @@
 
     <!-- Manage -->
     <section id="view-manage" class="view">
-      <div id="welcome" class="panel welcome hidden">
-        <h3>Welcome — set up your wheel</h3>
-        <ol class="welcome-steps">
-          <li><strong>Check your time chunks</strong> below — the blocks of time you actually get (20 min, an hour…). Add your own.</li>
-          <li><strong>Add a few tasks.</strong> Give each one a category (Health, Work, Home…) and the chunk it fits in.</li>
-          <li><strong>Go to Spin</strong>, pick the chunk you have right now, and do whatever the wheel says.</li>
-        </ol>
-      </div>
-
       <details class="panel accordion" id="slots-panel">
         <summary><h3>Time chunks</h3><span id="slot-summary" class="count"></span></summary>
         <div class="accordion-body">
@@ -106,7 +97,7 @@
         </div>
       </details>
 
-      <div class="panel">
+      <div class="panel" id="tasks-panel">
         <h3>Tasks</h3>
         <div id="task-groups"></div>
         <form id="task-form" class="inline-form">
