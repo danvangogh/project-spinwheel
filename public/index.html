@@ -7,6 +7,20 @@
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
+  <div id="auth-gate" class="auth-gate hidden">
+    <div class="auth-card">
+      <h1>Spinwheel</h1>
+      <p class="auth-sub">Spin the wheel. Do the thing.</p>
+      <form id="auth-form">
+        <input id="auth-email" type="email" placeholder="Email" required autocomplete="email">
+        <input id="auth-password" type="password" placeholder="Password" required minlength="8" autocomplete="current-password">
+        <p id="auth-error" class="auth-error hidden"></p>
+        <button id="auth-submit" class="primary" type="submit">Sign in</button>
+      </form>
+      <p class="auth-toggle">No account? <a href="#" id="auth-mode-toggle">Create one</a></p>
+    </div>
+  </div>
+
   <header>
     <h1>Spinwheel</h1>
     <div class="header-actions">
@@ -101,6 +115,17 @@
       <div class="modal-head">
         <h2 id="settings-title">Settings</h2>
         <button id="settings-close" class="ghost" aria-label="Close">✕</button>
+      </div>
+
+      <div id="account-section" class="hidden">
+        <h3>Account</h3>
+        <div class="setting">
+          <div class="setting-text">
+            <div class="setting-name" id="account-email"></div>
+            <div class="setting-desc">Signed in on this device.</div>
+          </div>
+          <button id="btn-logout" class="ghost">Sign out</button>
+        </div>
       </div>
 
       <h3>Task Selection Settings</h3>

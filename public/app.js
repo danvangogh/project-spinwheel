@@ -124,6 +124,80 @@ const api = {
   },
 };
 
+/* ---------- auth ---------- */
+
+// Non-null when signed in to a backend that has accounts (the cloud deploy).
+// The local dev server has no auth and the pure-static build has no backend —
+// both run without an account.
+let auth = null;
+
+async function checkAuth() {
+  try {
+    const res = await fetch('/api/auth');
+    if (res.ok) {
+      auth = await res.json();
+      return 'authed';
+    }
+    if (res.status === 401) return 'login';
+  } catch { /* no backend at all */ }
+  return 'open';
+}
+
+function showAuthGate() {
+  $('#auth-gate').classList.remove('hidden');
+  $('#auth-email').focus();
+}
+
+let authGateMode = 'login';
+
+$('#auth-mode-toggle').onclick = (e) => {
+  e.preventDefault();
+  authGateMode = authGateMode === 'login' ? 'signup' : 'login';
+  $('#auth-submit').textContent = authGateMode === 'login' ? 'Sign in' : 'Create account';
+  $('#auth-mode-toggle').textContent = authGateMode === 'login' ? 'Create one' : 'Sign in';
+  $('.auth-toggle').firstChild.textContent = authGateMode === 'login' ? 'No account? ' : 'Have an account? ';
+  $('#auth-password').autocomplete = authGateMode === 'login' ? 'current-password' : 'new-password';
+  $('#auth-error').classList.add('hidden');
+};
+
+$('#auth-form').onsubmit = async (e) => {
+  e.preventDefault();
+  const errEl = $('#auth-error');
+  errEl.classList.add('hidden');
+  $('#auth-submit').disabled = true;
+  try {
+    const res = await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: authGateMode,
+        email: $('#auth-email').value,
+        password: $('#auth-password').value,
+      }),
+    });
+    const body = await res.json();
+    if (!res.ok) {
+      errEl.textContent = body.error || 'Something went wrong — try again.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+    auth = body;
+    $('#auth-gate').classList.add('hidden');
+    await loadApp();
+  } finally {
+    $('#auth-submit').disabled = false;
+  }
+};
+
+$('#btn-logout').onclick = async () => {
+  await fetch('/api/auth', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'logout' }),
+  });
+  location.reload();
+};
+
 const uid = () => Math.random().toString(36).slice(2, 9);
 const tasksForSlot = (slotId) => state.tasks.filter((t) => t.slotId === slotId);
 const slotById = (id) => state.slots.find((s) => s.id === id);
@@ -1027,7 +1101,7 @@ $('#task-form').onsubmit = async (e) => {
   await persist();
 };
 
-(async function init() {
+async function loadApp() {
   const loaded = await api.getState();
   state.slots = loaded.slots || [];
   state.tasks = loaded.tasks || [];
@@ -1036,10 +1110,23 @@ $('#task-form').onsubmit = async (e) => {
   state.selectedSlotId = state.slots[0]?.id || null;
   log = await api.getLog();
 
+  // Account section in settings only exists in the signed-in cloud mode.
+  $('#account-section').classList.toggle('hidden', !auth);
+  if (auth) $('#account-email').textContent = auth.email;
+
   renderSlotPicker();
   renderCategoryPicker();
   renderWheelArea();
   renderManage();
   renderStats();
   renderDoneToday();
+}
+
+(async function init() {
+  const mode = await checkAuth();
+  if (mode === 'login') {
+    showAuthGate();
+    return; // loadApp() runs after a successful sign-in
+  }
+  await loadApp();
 })();

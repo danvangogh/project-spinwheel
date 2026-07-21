@@ -5,5 +5,10 @@
   "description": "Spin a wheel to decide what to work on in a given time slot",
   "scripts": {
     "start": "node server.js"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^0.10.4",
+    "bcryptjs": "^2.4.3",
+    "jose": "^5.9.6"
   }
 }
