@@ -1,0 +1,75 @@
+<!doctype html>
+<!-- Source composition for og.png (1200×630 social card). Not linked from the
+     app; kept so the card can be re-rendered and re-captured after design
+     changes. Screenshot the body at exactly 1200×630. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>TimeChunkz OG card</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  body {
+    width: 1200px; height: 630px; overflow: hidden;
+    background: #f6f0e4;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: #1d1a16;
+    display: flex; align-items: center;
+  }
+  .left { flex: 1; padding: 0 0 0 84px; }
+  h1 { font-family: Georgia, serif; font-size: 92px; letter-spacing: -0.02em; margin-bottom: 14px; }
+  .tag { font-size: 30px; color: #6e675c; margin-bottom: 40px; }
+  .pills { display: flex; gap: 12px; }
+  .pill {
+    font-size: 22px; font-weight: 600; padding: 12px 26px;
+    border: 3px solid #1d1a16; border-radius: 999px;
+    background: #fffdf7; box-shadow: 4px 4px 0 #1d1a16;
+  }
+  .pill.active { background: #e4572e; color: #fffdf7; }
+  .right { position: relative; width: 620px; height: 630px; display: flex; align-items: center; justify-content: center; }
+  canvas { width: 540px; height: 540px; filter: drop-shadow(8px 10px 0 rgba(29,26,22,0.9)); }
+  .pointer {
+    position: absolute; top: 32px; left: 50%; transform: translateX(-50%);
+    width: 0; height: 0; z-index: 2;
+    border-left: 16px solid transparent; border-right: 16px solid transparent;
+    border-top: 32px solid #1d1a16;
+  }
+</style>
+</head>
+<body>
+  <div class="left">
+    <h1>TimeChunkz</h1>
+    <div class="tag">Spin the wheel. Do the thing.</div>
+    <div class="pills">
+      <div class="pill active">20 min</div>
+      <div class="pill">45 min</div>
+      <div class="pill">1 hour</div>
+    </div>
+  </div>
+  <div class="right">
+    <div class="pointer"></div>
+    <canvas id="w" width="1080" height="1080"></canvas>
+  </div>
+<script>
+  const tasks = ['Quick workout', 'Write for 20 min', 'Tidy the kitchen', 'Call a friend',
+                 'Read a chapter', 'Stretch', 'Inbox zero', 'Plan dinner'];
+  const colors = ['#e4572e', '#29a19c', '#f4b41a', '#8464c6', '#db5a8c', '#4e9f5d', '#4a7fd4', '#c97e2c'];
+  const c = document.getElementById('w');
+  const x = c.getContext('2d');
+  x.scale(2, 2);
+  const cx = 270, cy = 270, r = 262, seg = Math.PI * 2 / tasks.length;
+  const rot = -Math.PI / 2 - seg / 2; // first slice centred under the pointer
+  tasks.forEach((t, i) => {
+    const a0 = i * seg + rot;
+    x.beginPath(); x.moveTo(cx, cy); x.arc(cx, cy, r, a0, a0 + seg); x.closePath();
+    x.fillStyle = colors[i]; x.fill();
+    x.strokeStyle = '#1d1a16'; x.lineWidth = 3; x.stroke();
+    x.save(); x.translate(cx, cy); x.rotate(a0 + seg / 2);
+    x.textAlign = 'right'; x.textBaseline = 'middle'; x.fillStyle = '#17140f';
+    x.font = '400 21px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    x.fillText(t, r - 22, 0); x.restore();
+  });
+  x.beginPath(); x.arc(cx, cy, 34, 0, Math.PI * 2);
+  x.fillStyle = '#f6f0e4'; x.fill(); x.strokeStyle = '#1d1a16'; x.lineWidth = 3; x.stroke();
+</script>
+</body>
+</html>

@@ -3,13 +3,31 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Spinwheel</title>
+  <title>TimeChunkz — spin the wheel, do the thing</title>
+  <meta name="description" content="A time-boxed task decision wheel. Pick a chunk of time, spin, and do exactly what it says.">
+  <meta name="theme-color" content="#f6f0e4">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+
+  <!-- Social sharing -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="TimeChunkz">
+  <meta property="og:title" content="TimeChunkz — spin the wheel, do the thing">
+  <meta property="og:description" content="A time-boxed task decision wheel. Pick a chunk of time, spin, and do exactly what it says.">
+  <meta property="og:url" content="https://timechunkz.com">
+  <meta property="og:image" content="https://timechunkz.com/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="TimeChunkz — spin the wheel, do the thing">
+  <meta name="twitter:description" content="A time-boxed task decision wheel. Pick a chunk of time, spin, and do exactly what it says.">
+  <meta name="twitter:image" content="https://timechunkz.com/og.png">
+
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <div id="auth-gate" class="auth-gate hidden">
     <div class="auth-card">
-      <h1>Spinwheel</h1>
+      <h1>TimeChunkz</h1>
       <p class="auth-sub">Spin the wheel. Do the thing.</p>
       <form id="auth-form">
         <input id="auth-email" type="email" placeholder="Email" required autocomplete="email">
@@ -22,7 +40,7 @@
   </div>
 
   <header>
-    <h1>Spinwheel</h1>
+    <h1>TimeChunkz</h1>
     <div class="header-actions">
       <nav>
         <button class="tab active" data-view="spin">Spin</button>
@@ -46,7 +64,7 @@
           <div class="pointer"></div>
           <canvas id="wheel" width="440" height="440"></canvas>
         </div>
-        <p id="wheel-empty" class="empty hidden">No tasks in this slot yet — add some under <strong>Manage</strong>.</p>
+        <p id="wheel-empty" class="empty hidden">No tasks in this chunk yet — add some under <strong>Manage</strong>.</p>
         <button id="spin-btn" class="primary big">Spin</button>
         <p id="pick-hint" class="hint">or click a slice to pick it yourself</p>
       </div>
@@ -67,14 +85,23 @@
 
     <!-- Manage -->
     <section id="view-manage" class="view">
+      <div id="welcome" class="panel welcome hidden">
+        <h3>Welcome — set up your wheel</h3>
+        <ol class="welcome-steps">
+          <li><strong>Check your time chunks</strong> below — the blocks of time you actually get (20 min, an hour…). Add your own.</li>
+          <li><strong>Add a few tasks.</strong> Give each one a category (Health, Work, Home…) and the chunk it fits in.</li>
+          <li><strong>Go to Spin</strong>, pick the chunk you have right now, and do whatever the wheel says.</li>
+        </ol>
+      </div>
+
       <details class="panel accordion" id="slots-panel">
-        <summary><h3>Time slots</h3><span id="slot-summary" class="count"></span></summary>
+        <summary><h3>Time chunks</h3><span id="slot-summary" class="count"></span></summary>
         <div class="accordion-body">
           <ul id="slot-list" class="list"></ul>
           <form id="slot-form" class="inline-form">
             <input id="slot-label" type="text" placeholder="Label (e.g. 2 hours)" required>
             <input id="slot-minutes" type="number" min="1" max="1440" placeholder="Minutes" required>
-            <button class="primary" type="submit">Add slot</button>
+            <button class="primary" type="submit">Add chunk</button>
           </form>
         </div>
       </details>

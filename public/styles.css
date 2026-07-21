@@ -153,6 +153,12 @@ nav {
   display: grid; place-items: center;
 }
 
+/* Welcome walkthrough (empty accounts) */
+.welcome { border-color: var(--accent); }
+.welcome h3 { color: var(--accent); }
+.welcome-steps { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+.welcome-steps li { line-height: 1.5; }
+
 /* ---------------------------------------------------------------------------
    Auth gate
 --------------------------------------------------------------------------- */

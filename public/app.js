@@ -62,8 +62,8 @@ const ctx = canvas.getContext('2d');
 // their own browser. Detection happens once, on the first getState().
 let useLocalStorage = false;
 
-const LS_STATE = 'spinwheel-state';
-const LS_LOG = 'spinwheel-log';
+const LS_STATE = 'timechunkz-state';
+const LS_LOG = 'timechunkz-log';
 
 const lsRead = (key, fallback) => {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
@@ -761,15 +761,20 @@ function renderWheelArea() {
   emptyEl.classList.toggle('hidden', !empty);
   emptyEl.innerHTML = allDone
     ? 'Everything on this wheel is done for today 🎉'
-    : 'No tasks in this slot yet — add some under <strong>Manage</strong>.';
+    : 'No tasks in this chunk yet — add some under <strong>Manage</strong>.';
   $('#pick-hint').classList.toggle('hidden', empty);
   $('#spin-btn').disabled = empty || spinning;
   drawWheel();
 }
 
 function renderManage() {
+  // Welcome walkthrough for accounts with no tasks yet. Derived from the data
+  // rather than a stored "seen" flag — it retires itself the moment the first
+  // task exists, and reappears only if the wheel is ever emptied out.
+  $('#welcome').classList.toggle('hidden', state.tasks.length > 0);
+
   // Slots
-  $('#slot-summary').textContent = `${state.slots.length} slot${state.slots.length === 1 ? '' : 's'}`;
+  $('#slot-summary').textContent = `${state.slots.length} chunk${state.slots.length === 1 ? '' : 's'}`;
   const slotList = $('#slot-list');
   slotList.innerHTML = '';
   state.slots.forEach((slot) => {
@@ -999,15 +1004,16 @@ async function removeTask(id) {
 
 /* ---------- wiring ---------- */
 
+function switchView(name) {
+  document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.dataset.view === name));
+  document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
+  $(`#view-${name}`).classList.add('active');
+  // The canvas measures 0 while its view is hidden; redraw now that it has size.
+  if (name === 'spin') drawWheel();
+}
+
 document.querySelectorAll('.tab').forEach((tab) => {
-  tab.onclick = () => {
-    document.querySelectorAll('.tab').forEach((t) => t.classList.remove('active'));
-    document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
-    tab.classList.add('active');
-    $(`#view-${tab.dataset.view}`).classList.add('active');
-    // The canvas measures 0 while its view is hidden; redraw now that it has size.
-    if (tab.dataset.view === 'spin') drawWheel();
-  };
+  tab.onclick = () => switchView(tab.dataset.view);
 });
 
 window.addEventListener('resize', () => drawWheel());
@@ -1120,6 +1126,13 @@ async function loadApp() {
   renderManage();
   renderStats();
   renderDoneToday();
+
+  // A brand-new wheel has nothing to spin — take first-time users straight to
+  // Manage, where the welcome walkthrough and the add-task form are.
+  if (state.tasks.length === 0) {
+    switchView('manage');
+    $('#slots-panel').open = true;
+  }
 }
 
 (async function init() {
