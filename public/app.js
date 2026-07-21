@@ -27,8 +27,20 @@ const UNCATEGORIZED = 'Uncategorized';
 const HUB_RADIUS = 30;
 const LABEL_INSET = 16;   // gap between the rim and the start of a label
 
+const DEFAULT_SETTINGS = {
+  noRepeatToday: false,       // exclude tasks already logged today from the wheel
+  selection: 'random',        // 'random' | 'cycle' (even split — no repeats until all seen)
+};
+
 // selectedCategories empty means "all" — no filtering.
-const state = { slots: [], tasks: [], selectedSlotId: null, selectedCategories: [] };
+const state = {
+  slots: [],
+  tasks: [],
+  selectedSlotId: null,
+  selectedCategories: [],
+  settings: { ...DEFAULT_SETTINGS },
+  spinCycle: [],              // task ids landed on in the current even-split round
+};
 let log = [];
 
 let rotation = 0;          // current wheel rotation, radians
@@ -44,17 +56,66 @@ const ctx = canvas.getContext('2d');
 
 /* ---------- data ---------- */
 
+// Two storage backends, chosen automatically. The local Node server persists
+// to real files via /api/*; the static deployment (Vercel) has no backend, so
+// the same app falls back to localStorage — each visitor's data lives only in
+// their own browser. Detection happens once, on the first getState().
+let useLocalStorage = false;
+
+const LS_STATE = 'spinwheel-state';
+const LS_LOG = 'spinwheel-log';
+
+const lsRead = (key, fallback) => {
+  try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
+  catch { return fallback; }
+};
+const lsWrite = (key, value) => localStorage.setItem(key, JSON.stringify(value));
+
+// Mirrors the server's DEFAULT_STATE for first-run visitors with no backend.
+const FALLBACK_STATE = {
+  slots: [
+    { id: 's20', label: '20 min', minutes: 20 },
+    { id: 's45', label: '45 min', minutes: 45 },
+    { id: 's60', label: '1 hour', minutes: 60 },
+  ],
+  tasks: [],
+};
+
 const api = {
-  async getState() { return (await fetch('/api/state')).json(); },
+  async getState() {
+    if (!useLocalStorage) {
+      try {
+        const res = await fetch('/api/state');
+        if (res.ok) return await res.json();
+      } catch { /* no backend reachable */ }
+      useLocalStorage = true;
+    }
+    return lsRead(LS_STATE, FALLBACK_STATE);
+  },
   async putState() {
+    const body = {
+      slots: state.slots,
+      tasks: state.tasks,
+      settings: state.settings,
+      spinCycle: state.spinCycle,
+    };
+    if (useLocalStorage) return lsWrite(LS_STATE, body);
     await fetch('/api/state', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ slots: state.slots, tasks: state.tasks }),
+      body: JSON.stringify(body),
     });
   },
-  async getLog() { return (await fetch('/api/log')).json(); },
+  async getLog() {
+    if (useLocalStorage) return lsRead(LS_LOG, []);
+    return (await fetch('/api/log')).json();
+  },
   async appendLog(entry) {
+    if (useLocalStorage) {
+      const entries = lsRead(LS_LOG, []);
+      entries.push(entry);
+      return lsWrite(LS_LOG, entries);
+    }
     await fetch('/api/log', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -70,9 +131,30 @@ const slotById = (id) => state.slots.find((s) => s.id === id);
 // Tasks predate categories, so fall back rather than dropping them off the wheel.
 const categoryOf = (task) => task.category || UNCATEGORIZED;
 
-const currentTasks = () => tasksForSlot(state.selectedSlotId).filter(
+// Local calendar date, not UTC — an evening session should belong to the day
+// you experienced it, and "today" should roll over at your midnight.
+const pad2 = (n) => String(n).padStart(2, '0');
+const localDateStr = (d = new Date()) =>
+  `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const todayStr = () => localDateStr();
+
+// Tasks with any log entry today — spun-and-skipped or completed both count.
+const doneTodayIds = () => new Set(
+  log.filter((e) => e.date === todayStr()).map((e) => e.taskId)
+);
+
+// Slot + category filters only — the pool before daily-repeat rules.
+const filteredTasks = () => tasksForSlot(state.selectedSlotId).filter(
   (t) => state.selectedCategories.length === 0 || state.selectedCategories.includes(categoryOf(t))
 );
+
+// What the wheel shows and can land on. With "once per day" on, tasks already
+// logged today drop off the wheel entirely until tomorrow.
+const currentTasks = () => {
+  if (!state.settings.noRepeatToday) return filteredTasks();
+  const done = doneTodayIds();
+  return filteredTasks().filter((t) => !done.has(t.id));
+};
 
 // Drop selections that don't exist in the current slot; if nothing survives,
 // fall back to "all" rather than showing an empty wheel.
@@ -283,8 +365,27 @@ function spin() {
     return;
   }
 
+  // Even split: draw only from tasks not yet landed on this round. The wheel
+  // still displays everything — the cycle paces the landings, it doesn't
+  // remove slices.
+  let pool = tasks;
+  if (state.settings.selection === 'cycle') {
+    let remaining = tasks.filter((t) => !state.spinCycle.includes(t.id));
+    if (remaining.length === 0) {
+      // Round complete — clear this wheel's tasks from the cycle and restart.
+      const ids = new Set(tasks.map((t) => t.id));
+      state.spinCycle = state.spinCycle.filter((id) => !ids.has(id));
+      api.putState();
+      remaining = tasks;
+    }
+    pool = remaining;
+  }
+
+  const winner = pool[Math.floor(Math.random() * pool.length)];
+  const index = tasks.findIndex((t) => t.id === winner.id);
+
   const seg = (Math.PI * 2) / tasks.length;
-  landOn(Math.floor(Math.random() * tasks.length), tasks, {
+  landOn(index, tasks, {
     turns: 5 + Math.floor(Math.random() * 3),
     // A little jitter so it doesn't stop dead-centre every time.
     jitter: (Math.random() - 0.5) * seg * 0.7,
@@ -328,6 +429,12 @@ function segmentAt(clientX, clientY) {
 function showResult(task, chosen = 'spin') {
   const slot = slotById(state.selectedSlotId);
   pending = { task, slot, chosen, timerStartedAt: null };
+
+  // A landed spin counts toward the even-split round regardless of outcome.
+  if (chosen === 'spin' && state.settings.selection === 'cycle' && !state.spinCycle.includes(task.id)) {
+    state.spinCycle.push(task.id);
+    api.putState(); // fire-and-forget; nothing visible depends on it
+  }
 
   $('#result-task').textContent = task.name;
   $('.result-label').textContent = chosen === 'manual' ? 'You picked' : 'Work on';
@@ -481,7 +588,7 @@ async function record(outcome) {
   const now = new Date();
   await api.appendLog({
     timestamp: now.toISOString(),
-    date: now.toISOString().slice(0, 10),
+    date: localDateStr(now),
     slotId: pending.slot.id,
     slotLabel: pending.slot.label,
     slotMinutes: pending.slot.minutes,
@@ -489,7 +596,10 @@ async function record(outcome) {
     task: pending.task.name,
     category: categoryOf(pending.task),
     chosen: pending.chosen,
-    outcome,
+    // A skip is declining the task you were given — for the stats that's a
+    // fail. The `skipped` flag preserves the distinction in the history.
+    outcome: outcome === 'skip' ? 'fail' : outcome,
+    skipped: outcome === 'skip' || undefined,
     // Time actually on the clock — 0 if the timer was never started.
     elapsedSeconds: pending.timerStartedAt
       ? Math.round((Date.now() - pending.timerStartedAt) / 1000)
@@ -499,6 +609,8 @@ async function record(outcome) {
   log = await api.getLog();
   renderStats();
   renderDoneToday();
+  // With "once per day" on, the task just logged has to drop off the wheel.
+  renderWheelArea();
   hideResult();
   if (outcome === 'skip') spin();
 }
@@ -528,7 +640,10 @@ function renderSlotPicker() {
 function renderCategoryPicker() {
   const host = $('#category-picker');
   host.innerHTML = '';
-  const slotTasks = tasksForSlot(state.selectedSlotId);
+  // Counts respect the "once per day" rule so a chip's number always matches
+  // how many slices selecting it would put on the wheel.
+  const done = state.settings.noRepeatToday ? doneTodayIds() : new Set();
+  const slotTasks = tasksForSlot(state.selectedSlotId).filter((t) => !done.has(t.id));
   const showingAll = state.selectedCategories.length === 0;
 
   const all = document.createElement('button');
@@ -566,7 +681,13 @@ function renderCategoryPicker() {
 
 function renderWheelArea() {
   const empty = currentTasks().length === 0;
-  $('#wheel-empty').classList.toggle('hidden', !empty);
+  // Distinguish "no tasks exist here" from "everything's already done today".
+  const allDone = empty && filteredTasks().length > 0;
+  const emptyEl = $('#wheel-empty');
+  emptyEl.classList.toggle('hidden', !empty);
+  emptyEl.innerHTML = allDone
+    ? 'Everything on this wheel is done for today 🎉'
+    : 'No tasks in this slot yet — add some under <strong>Manage</strong>.';
   $('#pick-hint').classList.toggle('hidden', empty);
   $('#spin-btn').disabled = empty || spinning;
   drawWheel();
@@ -674,7 +795,7 @@ function renderManage() {
 // What's been accomplished today — successes only, shown under the wheel.
 function renderDoneToday() {
   const host = $('#done-today');
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayStr();
   const done = log.filter((e) => e.date === today && e.outcome === 'success');
   host.innerHTML = done.length === 0 ? '' : `<span class="done-label">Done today</span>${
     done.map((e) => `<span class="done-chip">✓ ${escapeHtml(e.task)}</span>`).join('')
@@ -689,15 +810,10 @@ function renderStats() {
   const rate = pct(successes, scored.length);
   const days = new Set(log.map((e) => e.date)).size;
 
-  // Entries with no `chosen` predate manual picking; they were all spins.
-  const spun = scored.filter((e) => (e.chosen || 'spin') === 'spin');
-  const spunRate = pct(spun.filter((e) => e.outcome === 'success').length, spun.length);
-
   $('#stats-summary').innerHTML = `
     <div class="stat"><div class="value">${scored.length}</div><div class="label">Sessions logged</div></div>
     <div class="stat"><div class="value">${rate}</div><div class="label">Success rate</div></div>
-    <div class="stat"><div class="value">${spunRate}</div><div class="label">Spun only (${spun.length})</div></div>
-    <div class="stat"><div class="value">${log.filter((e) => e.outcome === 'skip').length}</div><div class="label">Skipped</div></div>
+    <div class="stat"><div class="value">${log.filter((e) => e.skipped || e.outcome === 'skip').length}</div><div class="label">Skipped</div></div>
     <div class="stat"><div class="value">${days}</div><div class="label">Days active</div></div>
   `;
 
@@ -759,7 +875,7 @@ function renderStats() {
     : latest.map((e) => `
       <li>
         <span>${escapeHtml(e.task)} <span class="meta">${e.date} · ${escapeHtml(e.slotLabel)} · ${escapeHtml(e.category || UNCATEGORIZED)} · ${
-          (e.chosen || 'spin') === 'manual' ? 'picked' : 'spun'}</span></span>
+          (e.chosen || 'spin') === 'manual' ? 'picked' : 'spun'}${e.skipped ? ' · skipped' : ''}</span></span>
         <span class="badge ${e.outcome}">${e.outcome}</span>
       </li>`).join('');
 }
@@ -822,6 +938,41 @@ document.querySelectorAll('.tab').forEach((tab) => {
 
 window.addEventListener('resize', () => drawWheel());
 
+/* Settings modal */
+
+function renderSettings() {
+  $('#set-norepeat').checked = state.settings.noRepeatToday;
+  $('#sel-random').classList.toggle('active', state.settings.selection === 'random');
+  $('#sel-cycle').classList.toggle('active', state.settings.selection === 'cycle');
+}
+
+const settingsModal = $('#settings-modal');
+
+$('#settings-btn').onclick = () => {
+  renderSettings();
+  settingsModal.classList.remove('hidden');
+};
+$('#settings-close').onclick = () => settingsModal.classList.add('hidden');
+settingsModal.onclick = (e) => {
+  if (e.target === settingsModal) settingsModal.classList.add('hidden');
+};
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') settingsModal.classList.add('hidden');
+});
+
+$('#set-norepeat').onchange = async (e) => {
+  state.settings.noRepeatToday = e.target.checked;
+  await persist();
+};
+
+async function setSelectionMode(mode) {
+  state.settings.selection = mode;
+  renderSettings();
+  await persist();
+}
+$('#sel-random').onclick = () => setSelectionMode('random');
+$('#sel-cycle').onclick = () => setSelectionMode('cycle');
+
 $('#spin-btn').onclick = spin;
 
 canvas.onclick = (e) => pickManually(segmentAt(e.clientX, e.clientY));
@@ -880,6 +1031,8 @@ $('#task-form').onsubmit = async (e) => {
   const loaded = await api.getState();
   state.slots = loaded.slots || [];
   state.tasks = loaded.tasks || [];
+  state.settings = { ...DEFAULT_SETTINGS, ...(loaded.settings || {}) };
+  state.spinCycle = Array.isArray(loaded.spinCycle) ? loaded.spinCycle : [];
   state.selectedSlotId = state.slots[0]?.id || null;
   log = await api.getLog();
 

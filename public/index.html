@@ -9,11 +9,16 @@
 <body>
   <header>
     <h1>Spinwheel</h1>
-    <nav>
-      <button class="tab active" data-view="spin">Spin</button>
-      <button class="tab" data-view="manage">Manage</button>
-      <button class="tab" data-view="stats">Stats</button>
-    </nav>
+    <div class="header-actions">
+      <nav>
+        <button class="tab active" data-view="spin">Spin</button>
+        <button class="tab" data-view="manage">Manage</button>
+        <button class="tab" data-view="stats">Stats</button>
+      </nav>
+      <button id="settings-btn" class="icon-btn" aria-label="Settings" title="Settings">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.08a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.08a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.08a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
   </header>
 
   <main>
@@ -90,6 +95,39 @@
       </div>
     </section>
   </main>
+
+  <div id="settings-modal" class="modal-overlay hidden">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <div class="modal-head">
+        <h2 id="settings-title">Settings</h2>
+        <button id="settings-close" class="ghost" aria-label="Close">✕</button>
+      </div>
+
+      <h3>Task Selection Settings</h3>
+
+      <div class="setting">
+        <div class="setting-text">
+          <div class="setting-name">Once per day</div>
+          <div class="setting-desc">The wheel won't land on a task that's already been spun or completed today.</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="set-norepeat">
+          <span class="track"></span>
+        </label>
+      </div>
+
+      <div class="setting">
+        <div class="setting-text">
+          <div class="setting-name">Spin selection</div>
+          <div class="setting-desc">Even split cycles through every task on the wheel before allowing repeats.</div>
+        </div>
+        <div class="seg">
+          <button id="sel-random">Fully random</button>
+          <button id="sel-cycle">Even split</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script src="/app.js"></script>
 </body>
