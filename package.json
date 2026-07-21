@@ -4,7 +4,7 @@
   "private": true,
   "description": "Spin a wheel to decide what to work on in a given time slot",
   "scripts": {
-    "start": "node server.js"
+    "dev": "node server.js"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4",

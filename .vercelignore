@@ -1,0 +1,8 @@
+# Never ship personal data or the local dev server to Vercel.
+# server.js is the LOCAL file-backed server — if deployed, Vercel auto-detects
+# it as the app's entrypoint and it serves data/ with no auth. The cloud runs
+# the /api functions instead.
+data
+server.js
+.env.local
+.env*.local
