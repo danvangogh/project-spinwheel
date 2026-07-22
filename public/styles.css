@@ -70,6 +70,21 @@ header {
   padding: 20px 32px;
 }
 
+/* Main app header: wordmark + settings gear share the top row, and the nav
+   sits centered on its own row below. (The admin page keeps the plain row.) */
+.app-header {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+}
+.app-header .header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.app-header > nav { align-self: center; }
+
 h1 {
   font-family: var(--font-display);
   font-size: 21px;
@@ -131,18 +146,19 @@ button.big {
   border-radius: calc(var(--radius-sm) + 4px);
 }
 
-/* Nav — segmented pill */
+/* Nav — dark segmented pill. Deliberately inverted from the cream content
+   pills (slots, filter) so it reads as navigation/chrome, not another control. */
 nav {
   display: flex;
   gap: 4px;
-  background: var(--panel);
+  background: var(--text);
   border: var(--border-w) solid var(--border);
   border-radius: 999px;
   padding: 4px;
   box-shadow: var(--btn-shadow);
 }
-.tab { border: 0; background: transparent; border-radius: 999px; padding: 7px 18px; box-shadow: none; color: var(--muted); }
-.tab:hover:not(.active) { color: var(--text); border-color: transparent; }
+.tab { border: 0; background: transparent; border-radius: 999px; padding: 7px 18px; box-shadow: none; color: rgba(246, 240, 228, 0.6); }
+.tab:hover:not(.active) { color: #f6f0e4; border-color: transparent; }
 .tab.active { background: var(--primary-bg); color: var(--accent-ink); font-weight: 600; }
 
 .header-actions { display: flex; align-items: center; gap: 10px; }
@@ -375,13 +391,62 @@ button.loading::after {
 .slots button { border-radius: 999px; }
 .slots button.selected { background: var(--primary-bg); border-color: var(--border); color: var(--accent-ink); font-weight: 600; }
 
-.slots.categories { margin-bottom: 28px; }
-.slots.categories button { padding: 6px 14px; font-size: 13px; }
+/* Category filter — a multi-select dropdown, the same on every viewport. */
+.cat-filter { position: relative; display: flex; justify-content: center; margin-bottom: 28px; }
+.cat-filter-trigger {
+  display: inline-flex; align-items: center; gap: 10px;
+  min-width: 200px; max-width: 320px;
+  padding: 9px 16px; font-size: 14px;
+  border-radius: 999px;
+}
+.cat-filter-value { flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cat-filter-caret {
+  flex: none; width: 0; height: 0;
+  border-left: 5px solid transparent; border-right: 5px solid transparent;
+  border-top: 6px solid var(--muted);
+  transition: transform 0.15s;
+}
+.cat-filter.open .cat-filter-caret { transform: rotate(180deg); }
 
-/* Category filter accordion: on desktop the summary is hidden and JS keeps
-   the panel open, so it renders as the plain chip row above. On mobile
-   (see media query) the summary becomes a tappable pill and the chips collapse. */
-.cat-accordion > summary { display: none; }
+.cat-filter-menu {
+  position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+  z-index: 20;
+  width: max-content; min-width: 220px; max-width: min(320px, calc(100vw - 32px));
+  max-height: 320px; overflow-y: auto;
+  background: var(--panel);
+  border: var(--border-w) solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  padding: 6px;
+  animation: cat-menu-in 0.16s cubic-bezier(0.2, 1.2, 0.4, 1);
+}
+.cat-filter-menu[hidden] { display: none; }
+@keyframes cat-menu-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(-6px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.cat-opt {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  border: 0; box-shadow: none; background: transparent;
+  border-radius: 9px; padding: 8px 10px;
+  font-size: 14px; color: var(--text); text-align: left;
+}
+.cat-opt:hover:not(:disabled) { background: rgba(29, 26, 22, 0.06); border-color: transparent; }
+.cat-opt-box {
+  flex: none; width: 18px; height: 18px;
+  border: 2px solid var(--border); border-radius: 5px;
+  position: relative;
+}
+.cat-opt.checked .cat-opt-box { background: var(--accent); border-color: var(--accent); }
+.cat-opt.checked .cat-opt-box::after {
+  content: ''; position: absolute; left: 4px; top: 0;
+  width: 5px; height: 9px;
+  border: solid #fff; border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.cat-opt-label { flex: 1; }
+.cat-opt-count { flex: none; color: var(--muted); font-variant-numeric: tabular-nums; font-size: 13px; }
 
 .wheel-area { display: flex; flex-direction: column; align-items: center; gap: 26px; }
 .wheel-wrap { position: relative; width: 460px; max-width: 100%; }
@@ -544,45 +609,17 @@ button.loading::after {
 @media (max-width: 560px) {
   main { padding: 16px 18px 40px; }
   header { padding: 14px 18px; flex-direction: column; align-items: stretch; }
-  nav { justify-content: center; flex: 1; }
   .header-actions { justify-content: space-between; }
   .setting { flex-wrap: wrap; }
   .timer { font-size: 46px; }
 
   .panel { padding: 16px; }
 
-  /* Spin view: keep the wheel and its button above the fold. The category
-     filter collapses into a pill, and the Spin button sits above the wheel. */
-  .cat-accordion { margin-bottom: 18px; }
-  .cat-accordion > summary {
-    display: flex; align-items: center; gap: 8px;
-    list-style: none; cursor: pointer; user-select: none;
-    border: var(--border-w) solid var(--border);
-    border-radius: 999px;
-    padding: 9px 16px;
-    background: var(--panel);
-    box-shadow: var(--btn-shadow);
-    font-size: 14px;
-  }
-  .cat-accordion > summary::-webkit-details-marker { display: none; }
-  .cat-accordion > summary:active { transform: translate(1px, 1px); box-shadow: none; }
-  .cat-accordion-label { color: var(--muted); font-weight: 500; flex: none; }
-  .cat-accordion-value {
-    color: var(--text); font-weight: 600;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
-  .cat-accordion > summary::after {
-    content: ''; margin-left: auto; flex: none;
-    width: 0; height: 0;
-    border-left: 5px solid transparent;
-    border-right: 5px solid transparent;
-    border-top: 6px solid var(--muted);
-    transition: transform 0.15s;
-  }
-  .cat-accordion[open] > summary { margin-bottom: 12px; }
-  .cat-accordion[open] > summary::after { transform: rotate(180deg); }
-  .cat-accordion .slots.categories { margin-bottom: 0; }
-
+  /* Spin view: keep the wheel and its button above the fold — the Spin
+     button sits above the wheel, and the category filter is a compact
+     dropdown (styled the same as on desktop). */
+  .cat-filter { margin-bottom: 18px; }
+  .cat-filter-trigger { min-width: 220px; }
   #spin-btn { order: -1; }
 
   /* Task rows: the name gets its own line; the chunk selector, category

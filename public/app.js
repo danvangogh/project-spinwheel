@@ -735,50 +735,58 @@ function renderSlotPicker() {
 }
 
 function renderCategoryPicker() {
-  const host = $('#category-picker');
-  host.innerHTML = '';
-  // Counts respect the "once per day" rule so a chip's number always matches
+  const menu = $('#category-menu');
+  menu.innerHTML = '';
+  // Counts respect the "once per day" rule so an option's number always matches
   // how many slices selecting it would put on the wheel.
   const done = state.settings.noRepeatToday ? doneTodayIds() : new Set();
   const slotTasks = tasksForSlot(state.selectedSlotId).filter((t) => !done.has(t.id));
   const showingAll = state.selectedCategories.length === 0;
 
-  const all = document.createElement('button');
-  all.textContent = `All categories (${slotTasks.length})`;
-  all.className = showingAll ? 'selected' : '';
-  all.onclick = () => {
-    if (spinning) return;
-    state.selectedCategories = [];
-    hideResult();
-    renderCategoryPicker();
-    renderWheelArea();
+  // One checkbox row. onToggle mutates state; the shared handler re-renders.
+  const addOption = (label, count, checked, onToggle) => {
+    const opt = document.createElement('button');
+    opt.type = 'button';
+    opt.className = `cat-opt${checked ? ' checked' : ''}`;
+    opt.setAttribute('role', 'option');
+    opt.setAttribute('aria-selected', checked ? 'true' : 'false');
+    opt.innerHTML = '<span class="cat-opt-box"></span><span class="cat-opt-label"></span><span class="cat-opt-count"></span>';
+    opt.querySelector('.cat-opt-label').textContent = label;
+    opt.querySelector('.cat-opt-count').textContent = count;
+    opt.onclick = (e) => {
+      if (spinning) return;
+      // Stop the bubble: this handler rebuilds the menu, detaching the clicked
+      // node, which would make the document outside-click listener treat it as
+      // an outside click and close the dropdown mid multi-select.
+      e.stopPropagation();
+      onToggle();
+      hideResult();
+      renderCategoryPicker(); // rebuilds the menu; the dropdown stays open
+      renderWheelArea();
+    };
+    menu.appendChild(opt);
   };
-  host.appendChild(all);
+
+  addOption('All categories', slotTasks.length, showingAll, () => {
+    state.selectedCategories = [];
+  });
 
   categoriesInSlot().forEach((category) => {
     const count = slotTasks.filter((t) => categoryOf(t) === category).length;
     const active = state.selectedCategories.includes(category);
-
-    const btn = document.createElement('button');
-    btn.textContent = `${active ? '✓ ' : ''}${category} (${count})`;
-    btn.className = active ? 'selected' : '';
-    btn.onclick = () => {
-      if (spinning) return;
+    addOption(category, count, active, () => {
       // Toggle. Deselecting the last one falls back to "all".
       state.selectedCategories = active
         ? state.selectedCategories.filter((c) => c !== category)
         : [...state.selectedCategories, category];
-      hideResult();
-      renderCategoryPicker();
-      renderWheelArea();
-    };
-    host.appendChild(btn);
+    });
   });
 
-  // Keep the mobile accordion summary showing the active filter.
+  // Trigger label reflects the current filter: all, a short list, or a count.
+  const sel = state.selectedCategories;
   $('#category-value').textContent = showingAll
-    ? `All categories (${slotTasks.length})`
-    : state.selectedCategories.join(', ');
+    ? 'All categories'
+    : sel.length <= 2 ? sel.join(', ') : `${sel.length} categories`;
 }
 
 function renderWheelArea() {
@@ -1049,14 +1057,27 @@ document.querySelectorAll('.tab').forEach((tab) => {
 
 window.addEventListener('resize', () => drawWheel());
 
-// The category filter is inline chips on desktop but a collapsible accordion
-// on mobile. <details> open state can't be forced by CSS, so keep it expanded
-// on desktop (summary hidden) and collapsed on mobile, syncing on resize.
-const spinMobileMQ = window.matchMedia('(max-width: 560px)');
-function syncCategoryAccordion() {
-  $('#category-panel').open = !spinMobileMQ.matches;
+// Category filter dropdown. The menu stays open while ticking multiple
+// categories; it closes on an outside click, Escape, or the trigger.
+const catFilter = $('#category-filter');
+const catTrigger = $('#category-trigger');
+const catMenu = $('#category-menu');
+
+function setCatMenuOpen(open) {
+  catFilter.classList.toggle('open', open);
+  catMenu.hidden = !open;
+  catTrigger.setAttribute('aria-expanded', open ? 'true' : 'false');
 }
-spinMobileMQ.addEventListener('change', syncCategoryAccordion);
+catTrigger.onclick = (e) => {
+  e.stopPropagation();
+  setCatMenuOpen(catMenu.hidden);
+};
+document.addEventListener('click', (e) => {
+  if (!catMenu.hidden && !catFilter.contains(e.target)) setCatMenuOpen(false);
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !catMenu.hidden) setCatMenuOpen(false);
+});
 
 /* ---------- first-run tour ----------
    Floating cards anchored to the UI they explain, with the rest of the page
@@ -1274,7 +1295,6 @@ async function loadApp() {
 
   renderSlotPicker();
   renderCategoryPicker();
-  syncCategoryAccordion();
   renderWheelArea();
   renderManage();
   renderStats();

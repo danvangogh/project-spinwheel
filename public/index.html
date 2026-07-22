@@ -49,33 +49,33 @@
     </div>
   </div>
 
-  <header>
-    <h1>TimeChunkz</h1>
-    <div class="header-actions">
-      <nav>
-        <button class="tab active" data-view="spin">Spin</button>
-        <button class="tab" data-view="manage">Manage</button>
-        <button class="tab" data-view="stats">Stats</button>
-      </nav>
+  <header class="app-header">
+    <div class="header-top">
+      <h1>TimeChunkz</h1>
       <button id="settings-btn" class="icon-btn" aria-label="Settings" title="Settings">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.08a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.08a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.08a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </button>
     </div>
+    <nav>
+      <button class="tab active" data-view="spin">Spin</button>
+      <button class="tab" data-view="manage">Manage</button>
+      <button class="tab" data-view="stats">Stats</button>
+    </nav>
   </header>
 
   <main>
     <!-- Spin -->
     <section id="view-spin" class="view active">
       <div class="slots" id="slot-picker"></div>
-      <!-- Plain chip row on desktop; on mobile it collapses behind the
-           summary to keep the wheel and Spin button above the fold. -->
-      <details class="cat-accordion" id="category-panel">
-        <summary>
-          <span class="cat-accordion-label">Filter</span>
-          <span class="cat-accordion-value" id="category-value"></span>
-        </summary>
-        <div class="slots categories" id="category-picker"></div>
-      </details>
+      <!-- Multi-select category filter for the wheel. -->
+      <div class="cat-filter" id="category-filter">
+        <button type="button" class="cat-filter-trigger" id="category-trigger"
+                aria-haspopup="listbox" aria-expanded="false">
+          <span class="cat-filter-value" id="category-value">All categories</span>
+          <span class="cat-filter-caret" aria-hidden="true"></span>
+        </button>
+        <div class="cat-filter-menu" id="category-menu" role="listbox" aria-multiselectable="true" hidden></div>
+      </div>
 
       <div class="wheel-area">
         <div class="wheel-wrap">
