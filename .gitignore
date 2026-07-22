@@ -1,6 +1,8 @@
 # Personal runtime data — task list and completion log live only on this machine.
 data/
 
+CLAUDE.md
+
 node_modules/
 .DS_Store
 .vercel/

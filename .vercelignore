@@ -4,5 +4,6 @@
 # the /api functions instead.
 data
 server.js
+CLAUDE.md
 .env.local
 .env*.local
