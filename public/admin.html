@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TimeChunkz · Admin</title>
+  <meta name="theme-color" content="#f6f0e4">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    /* Admin-only styles — the shared design tokens (.panel, .stat, .table,
+       .badge, buttons) all come from styles.css. */
+    .admin-main { max-width: 1080px; }
+    h2.section { font-family: var(--font-display); font-size: 20px; margin: 34px 0 14px; letter-spacing: -0.01em; }
+    h2.section:first-of-type { margin-top: 8px; }
+
+    .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom: 8px; }
+    .stat .sub { color: var(--muted); font-size: 12px; margin-top: 4px; }
+
+    .charts { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+
+    /* Vertical bar chart (30-day series). */
+    .chart { display: flex; align-items: flex-end; gap: 3px; height: 130px; margin-top: 4px; }
+    .chart .bar {
+      flex: 1 1 0; min-width: 2px; min-height: 2px;
+      background: var(--accent); border-radius: 3px 3px 0 0;
+      opacity: 0.85; transition: opacity 0.1s;
+    }
+    .chart .bar.dau { background: var(--seg-2); }
+    .chart .bar.signup { background: var(--seg-4); }
+    .chart .bar:hover { opacity: 1; }
+    .chart-axis { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; margin-top: 8px; }
+    .chart-empty { color: var(--muted); font-size: 13px; padding: 40px 0; text-align: center; }
+
+    /* Horizontal bars — chunk-length distribution. */
+    .hbars { display: flex; flex-direction: column; gap: 10px; }
+    .hbar { display: grid; grid-template-columns: 78px 1fr 52px; align-items: center; gap: 10px; }
+    .hbar .hbar-label { font-size: 13px; font-weight: 600; }
+    .hbar .hbar-track { background: var(--hairline); border-radius: 999px; height: 14px; overflow: hidden; }
+    .hbar .hbar-fill { display: block; background: var(--seg-3); height: 100%; border-radius: 999px; min-width: 3px; }
+    .hbar .hbar-val { text-align: right; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+    .table td.email { font-weight: 500; word-break: break-all; }
+    .table td.dim { color: var(--muted); }
+    .table-scroll { overflow-x: auto; }
+    .updated { color: var(--muted); font-size: 12px; }
+
+    .gate { max-width: 440px; margin: 80px auto; text-align: center; }
+    .gate .panel { padding: 30px 28px; }
+    .gate h2 { font-family: var(--font-display); font-size: 22px; margin: 0 0 8px; }
+    .gate p { color: var(--muted); margin: 0 0 18px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>TimeChunkz <span style="color: var(--muted); font-weight: 400;">· Admin</span></h1>
+    <div class="header-actions">
+      <span id="updated" class="updated"></span>
+      <button id="refresh" class="ghost">Refresh</button>
+      <a href="/" class="tab" style="text-decoration: none; border: var(--border-w) solid var(--border); box-shadow: var(--btn-shadow); color: var(--text);">Back to app</a>
+    </div>
+  </header>
+
+  <main class="admin-main" style="max-width: 1080px; margin: 0 auto; padding: 8px 28px 56px;">
+    <div id="loading" class="chart-empty" style="padding: 60px 0;">Loading…</div>
+
+    <div id="gate" class="gate hidden">
+      <div class="panel">
+        <h2>Not available</h2>
+        <p>This page is for the site owner. If that's you, sign in to the app first, then come back.</p>
+        <a href="/" class="primary" style="display: inline-block; text-decoration: none; padding: 11px 22px; border-radius: var(--radius-sm); background: var(--primary-bg); color: var(--accent-ink); border: var(--border-w) solid var(--border); box-shadow: var(--btn-shadow); font-weight: 600;">Go to app</a>
+      </div>
+    </div>
+
+    <div id="dash" class="hidden">
+      <h2 class="section">Overview</h2>
+      <div class="grid" id="stat-grid"></div>
+
+      <h2 class="section">Last 30 days</h2>
+      <div class="charts">
+        <div class="panel">
+          <h3>Daily active users</h3>
+          <div id="chart-dau"></div>
+        </div>
+        <div class="panel">
+          <h3>Spins per day</h3>
+          <div id="chart-spins"></div>
+        </div>
+        <div class="panel">
+          <h3>New signups per day</h3>
+          <div id="chart-signups"></div>
+        </div>
+        <div class="panel">
+          <h3>Time-chunk lengths spun</h3>
+          <div id="chart-chunks"></div>
+        </div>
+      </div>
+
+      <h2 class="section">Users</h2>
+      <div class="panel">
+        <div class="table-scroll">
+          <table class="table" id="users-table"></table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="/admin.js"></script>
+</body>
+</html>

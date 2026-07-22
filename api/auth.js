@@ -40,6 +40,7 @@ module.exports = async (req, res) => {
     const rows = await sql`INSERT INTO users (email, password_hash) VALUES (${email}, ${hash}) RETURNING id`;
     const uid = rows[0].id;
     await sql`INSERT INTO app_state (user_id, data) VALUES (${uid}, ${JSON.stringify(DEFAULT_STATE)})`;
+    await sql`INSERT INTO events (user_id, type) VALUES (${uid}, 'signup')`;
     await createSession(res, uid);
     return res.json({ email });
   }
@@ -50,6 +51,7 @@ module.exports = async (req, res) => {
     if (rows.length === 0 || !(await bcrypt.compare(password, rows[0].password_hash))) {
       return res.status(401).json({ error: 'Email or password is incorrect.' });
     }
+    await sql`INSERT INTO events (user_id, type) VALUES (${rows[0].id}, 'login')`;
     await createSession(res, rows[0].id);
     return res.json({ email });
   }
