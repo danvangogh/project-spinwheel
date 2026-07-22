@@ -613,6 +613,14 @@ button.loading::after {
   .setting { flex-wrap: wrap; }
   .timer { font-size: 46px; }
 
+  /* iOS Safari auto-zooms when a focused control's font is under 16px, which
+     shoves the layout off-screen. Bump every focusable input/select to 16px
+     on mobile (selectors match the base rules' specificity so they win).
+     Desktop keeps its smaller, compact sizing. */
+  .inline-form input, .inline-form select,
+  .auth-card input,
+  .row-edit { font-size: 16px; }
+
   .panel { padding: 16px; }
 
   /* Spin view: keep the wheel and its button above the fold — the Spin
