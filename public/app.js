@@ -71,14 +71,29 @@ const lsRead = (key, fallback) => {
 };
 const lsWrite = (key, value) => localStorage.setItem(key, JSON.stringify(value));
 
-// Mirrors the server's DEFAULT_STATE for first-run visitors with no backend.
+// Mirrors the server's DEFAULT_STATE for first-run visitors with no backend —
+// seeded with the same example Work/Home tasks.
 const FALLBACK_STATE = {
   slots: [
     { id: 's20', label: '20 min', minutes: 20 },
     { id: 's45', label: '45 min', minutes: 45 },
     { id: 's60', label: '1 hour', minutes: 60 },
   ],
-  tasks: [],
+  tasks: [
+    { id: 'seed-w1', name: 'Catch up on emails', category: 'Work', slotId: 's20' },
+    { id: 'seed-w2', name: 'Submit recent expenses', category: 'Work', slotId: 's20' },
+    { id: 'seed-w3', name: 'Respond to Slack messages', category: 'Work', slotId: 's20' },
+    { id: 'seed-w4', name: 'Review your calendar for the week', category: 'Work', slotId: 's20' },
+    { id: 'seed-w5', name: 'Draft a project update', category: 'Work', slotId: 's45' },
+    { id: 'seed-w6', name: "Plan next week's priorities", category: 'Work', slotId: 's45' },
+    { id: 'seed-h1', name: 'Vacuum floors', category: 'Home', slotId: 's20' },
+    { id: 'seed-h2', name: 'Wipe kitchen cupboards', category: 'Home', slotId: 's20' },
+    { id: 'seed-h3', name: 'Clean behind stove', category: 'Home', slotId: 's20' },
+    { id: 'seed-h4', name: 'Clean out fridge', category: 'Home', slotId: 's20' },
+    { id: 'seed-h5', name: 'Restock pantry', category: 'Home', slotId: 's45' },
+    { id: 'seed-h6', name: 'Wash windows', category: 'Home', slotId: 's45' },
+    { id: 'seed-h7', name: 'Dust baseboards', category: 'Home', slotId: 's45' },
+  ],
 };
 
 const api = {
@@ -1088,8 +1103,8 @@ const TOUR_STEPS = [
   {
     view: 'manage',
     target: '#tasks-panel',
-    title: 'Add tasks',
-    text: 'Add all the tasks you need to do, give each one a category (Health, Work, Home…), and the chunk of time it fits in.',
+    title: 'Your tasks',
+    text: 'We’ve added a few example tasks to get you started. Edit or delete them, and add your own — give each a category (Work, Home…) and the chunk of time it fits in.',
   },
   {
     view: 'manage',
@@ -1300,9 +1315,10 @@ async function loadApp() {
   renderStats();
   renderDoneToday();
 
-  // A brand-new wheel has nothing to spin — walk first-time users through
-  // setup with the guided tour.
-  if (state.tasks.length === 0 && !state.settings.onboarded) startTour();
+  // Walk first-time users through setup with the guided tour. New accounts are
+  // seeded with example tasks (so the wheel isn't empty), which is why this is
+  // gated on `onboarded` alone rather than an empty task list.
+  if (!state.settings.onboarded) startTour();
 }
 
 (async function init() {

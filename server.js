@@ -8,13 +8,29 @@ const DATA = path.join(__dirname, 'data');
 const STATE_FILE = path.join(DATA, 'state.json');
 const LOG_FILE = path.join(DATA, 'log.json');
 
+// Mirrors lib/db.js DEFAULT_STATE and public/app.js FALLBACK_STATE — new local
+// state files start seeded with example Work/Home tasks.
 const DEFAULT_STATE = {
   slots: [
     { id: 's20', label: '20 min', minutes: 20 },
     { id: 's45', label: '45 min', minutes: 45 },
     { id: 's60', label: '1 hour', minutes: 60 },
   ],
-  tasks: [],
+  tasks: [
+    { id: 'seed-w1', name: 'Catch up on emails', category: 'Work', slotId: 's20' },
+    { id: 'seed-w2', name: 'Submit recent expenses', category: 'Work', slotId: 's20' },
+    { id: 'seed-w3', name: 'Respond to Slack messages', category: 'Work', slotId: 's20' },
+    { id: 'seed-w4', name: 'Review your calendar for the week', category: 'Work', slotId: 's20' },
+    { id: 'seed-w5', name: 'Draft a project update', category: 'Work', slotId: 's45' },
+    { id: 'seed-w6', name: "Plan next week's priorities", category: 'Work', slotId: 's45' },
+    { id: 'seed-h1', name: 'Vacuum floors', category: 'Home', slotId: 's20' },
+    { id: 'seed-h2', name: 'Wipe kitchen cupboards', category: 'Home', slotId: 's20' },
+    { id: 'seed-h3', name: 'Clean behind stove', category: 'Home', slotId: 's20' },
+    { id: 'seed-h4', name: 'Clean out fridge', category: 'Home', slotId: 's20' },
+    { id: 'seed-h5', name: 'Restock pantry', category: 'Home', slotId: 's45' },
+    { id: 'seed-h6', name: 'Wash windows', category: 'Home', slotId: 's45' },
+    { id: 'seed-h7', name: 'Dust baseboards', category: 'Home', slotId: 's45' },
+  ],
 };
 
 const MIME = {
