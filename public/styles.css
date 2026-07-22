@@ -210,6 +210,45 @@ nav {
    Auth gate
 --------------------------------------------------------------------------- */
 
+/* Loading states --------------------------------------------------------- */
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+/* Full-screen loader for the initial data fetch. The 0.15s delayed fade-in
+   means instant (local / cached) loads dismiss it before it ever shows, so
+   only genuinely slow loads flash a spinner. */
+.app-loading {
+  position: fixed; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg);
+  z-index: 29;
+  animation: loader-fade 0.25s ease 0.15s both;
+}
+@keyframes loader-fade { from { opacity: 0; } to { opacity: 1; } }
+
+.spinner {
+  width: 42px; height: 42px;
+  border: 4px solid rgba(29, 26, 22, 0.14);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Inline button spinner — text hides, a ring spins in its place. */
+button.loading { color: transparent !important; pointer-events: none; position: relative; }
+button.loading::after {
+  content: ''; position: absolute; inset: 0; margin: auto;
+  width: 17px; height: 17px;
+  border: 2px solid rgba(255, 253, 247, 0.4);
+  border-top-color: var(--accent-ink);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
 .auth-gate {
   position: fixed; inset: 0;
   background: var(--bg);

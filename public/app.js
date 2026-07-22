@@ -180,7 +180,9 @@ $('#auth-form').onsubmit = async (e) => {
   e.preventDefault();
   const errEl = $('#auth-error');
   errEl.classList.add('hidden');
-  $('#auth-submit').disabled = true;
+  const submitBtn = $('#auth-submit');
+  submitBtn.disabled = true;
+  submitBtn.classList.add('loading'); // bcrypt + a possibly cold DB take a beat
   try {
     const res = await fetch('/api/auth', {
       method: 'POST',
@@ -201,7 +203,8 @@ $('#auth-form').onsubmit = async (e) => {
     $('#auth-gate').classList.add('hidden');
     await loadApp();
   } finally {
-    $('#auth-submit').disabled = false;
+    submitBtn.disabled = false;
+    submitBtn.classList.remove('loading');
   }
 };
 
@@ -1283,10 +1286,15 @@ async function loadApp() {
 }
 
 (async function init() {
-  const mode = await checkAuth();
-  if (mode === 'login') {
-    showAuthGate();
-    return; // loadApp() runs after a successful sign-in
+  try {
+    const mode = await checkAuth();
+    if (mode === 'login') {
+      showAuthGate();
+      return; // loadApp() runs after a successful sign-in
+    }
+    await loadApp();
+  } finally {
+    // Whatever happened — signed in, open, or an error — stop the spinner.
+    $('#app-loading').classList.add('hidden');
   }
-  await loadApp();
 })();

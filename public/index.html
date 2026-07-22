@@ -28,6 +28,13 @@
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
+  <!-- Shown until the first data load finishes; the cloud DB can cold-start,
+       so the app would otherwise sit visibly empty for a beat. -->
+  <div id="app-loading" class="app-loading" role="status" aria-live="polite">
+    <div class="spinner" aria-hidden="true"></div>
+    <span class="sr-only">Loading…</span>
+  </div>
+
   <div id="auth-gate" class="auth-gate hidden">
     <div class="auth-card">
       <h1>TimeChunkz</h1>
