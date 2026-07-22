@@ -47,7 +47,6 @@ let log = [];
 let rotation = 0;          // current wheel rotation, radians
 let spinning = false;
 let hoverIndex = null;     // segment under the cursor, for click affordance
-const openGroups = new Set(); // slot ids whose task accordion is expanded
 let pending = null;        // the task awaiting a Success/Fail verdict
 let timerHandle = null;
 
@@ -131,6 +130,22 @@ const api = {
 // The local dev server has no auth and the pure-static build has no backend —
 // both run without an account.
 let auth = null;
+
+// Fire-and-forget usage event, for the admin dashboard. Only meaningful in the
+// signed-in cloud mode — local dev and the static localStorage fallback have no
+// account and no /api/events, so `auth` is null and we skip. Analytics must
+// never block or break the app, so failures are swallowed silently.
+function track(type, props) {
+  if (!auth) return;
+  try {
+    fetch('/api/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, props: props || {} }),
+      keepalive: true,
+    }).catch(() => {});
+  } catch { /* ignore */ }
+}
 
 async function checkAuth() {
   try {
@@ -432,6 +447,10 @@ function landOn(index, tasks, { turns, jitter, duration, chosen }) {
 function spin() {
   const tasks = currentTasks();
   if (spinning || tasks.length === 0) return;
+
+  // Record the spin and which time-chunk length was in play. Fires for the
+  // one-task disc too, since that path returns early just below.
+  track('spin', { minutes: slotById(state.selectedSlotId)?.minutes });
 
   // A one-task disc looks identical at every angle, so a long spin would just
   // read as a frozen wheel. The outcome isn't in doubt either — go straight there.
@@ -752,6 +771,11 @@ function renderCategoryPicker() {
     };
     host.appendChild(btn);
   });
+
+  // Keep the mobile accordion summary showing the active filter.
+  $('#category-value').textContent = showingAll
+    ? `All categories (${slotTasks.length})`
+    : state.selectedCategories.join(', ');
 }
 
 function renderWheelArea() {
@@ -769,8 +793,79 @@ function renderWheelArea() {
 }
 
 function renderManage() {
-  // Slots
-  $('#slot-summary').textContent = `${state.slots.length} chunk${state.slots.length === 1 ? '' : 's'}`;
+  // Tasks — one flat list; each row carries its own chunk and category,
+  // both editable in place (like a spreadsheet row) instead of the tasks
+  // being buried inside per-chunk accordions.
+  const taskList = $('#task-list');
+  taskList.innerHTML = '';
+  if (state.tasks.length === 0) {
+    const li = document.createElement('li');
+    li.className = 'empty-row';
+    li.innerHTML = '<span class="meta">No tasks yet — add one above.</span>';
+    taskList.appendChild(li);
+  } else {
+    state.tasks.forEach((task) => {
+      const li = document.createElement('li');
+      li.className = 'task-row';
+
+      const name = document.createElement('span');
+      name.className = 'task-name';
+      name.textContent = task.name;
+      li.appendChild(name);
+
+      const controls = document.createElement('div');
+      controls.className = 'row-controls';
+
+      // Chunk selector — moving a task between chunks without re-adding it.
+      const slotSel = document.createElement('select');
+      slotSel.className = 'row-edit slot-edit';
+      state.slots.forEach((slot) => {
+        const opt = document.createElement('option');
+        opt.value = slot.id;
+        opt.textContent = slot.label;
+        slotSel.appendChild(opt);
+      });
+      slotSel.value = task.slotId;
+      // A select commits its value on change, so a full re-render here is
+      // safe (unlike the category text input, which must persist quietly to
+      // keep its caret) and keeps per-chunk counts and the wheel in sync.
+      slotSel.onchange = async () => {
+        task.slotId = slotSel.value;
+        await persist();
+        track('task_edit', { action: 'move' });
+      };
+      controls.appendChild(slotSel);
+
+      // Category, editable in place, so existing tasks can be categorised
+      // without deleting and re-adding them.
+      const cat = document.createElement('input');
+      cat.type = 'text';
+      cat.className = 'row-edit cat-edit';
+      cat.value = task.category || '';
+      cat.placeholder = UNCATEGORIZED;
+      cat.setAttribute('list', 'category-options');
+      // Save without re-rendering this list — rebuilding the row mid-edit
+      // would clobber the input the user is still typing in.
+      cat.onchange = async () => {
+        const value = cat.value.trim();
+        task.category = value || undefined;
+        await persistQuietly();
+        track('task_edit', { action: 'categorize' });
+      };
+      controls.appendChild(cat);
+
+      const del = document.createElement('button');
+      del.className = 'del';
+      del.textContent = 'Remove';
+      del.onclick = () => removeTask(task.id);
+      controls.appendChild(del);
+
+      li.appendChild(controls);
+      taskList.appendChild(li);
+    });
+  }
+
+  // Time chunks
   const slotList = $('#slot-list');
   slotList.innerHTML = '';
   state.slots.forEach((slot) => {
@@ -783,70 +878,6 @@ function renderManage() {
     del.onclick = () => removeSlot(slot.id);
     li.appendChild(del);
     slotList.appendChild(li);
-  });
-
-  // Tasks, grouped by slot
-  const groups = $('#task-groups');
-  groups.innerHTML = '';
-  state.slots.forEach((slot) => {
-    const tasks = tasksForSlot(slot.id);
-    const group = document.createElement('details');
-    group.className = 'group accordion';
-    // Re-rendering rebuilds these nodes, so open/closed lives outside the DOM.
-    group.open = openGroups.has(slot.id);
-    group.ontoggle = () => {
-      if (group.open) openGroups.add(slot.id);
-      else openGroups.delete(slot.id);
-    };
-
-    const heading = document.createElement('summary');
-    heading.innerHTML = `<h4>${escapeHtml(slot.label)}</h4><span class="count">${
-      tasks.length} task${tasks.length === 1 ? '' : 's'}</span>`;
-    group.appendChild(heading);
-
-    const body = document.createElement('div');
-    body.className = 'accordion-body';
-    group.appendChild(body);
-
-    if (tasks.length === 0) {
-      const p = document.createElement('p');
-      p.className = 'meta';
-      p.textContent = 'No tasks yet.';
-      body.appendChild(p);
-    } else {
-      const ul = document.createElement('ul');
-      ul.className = 'list';
-      tasks.forEach((task) => {
-        const li = document.createElement('li');
-        li.innerHTML = `<span>${escapeHtml(task.name)}</span>`;
-
-        // Editable in place, so existing tasks can be categorised without
-        // deleting and re-adding them.
-        const cat = document.createElement('input');
-        cat.type = 'text';
-        cat.className = 'cat-edit';
-        cat.value = task.category || '';
-        cat.placeholder = UNCATEGORIZED;
-        cat.setAttribute('list', 'category-options');
-        // Save without re-rendering this list — rebuilding the row mid-edit
-        // would clobber the input the user is still typing in.
-        cat.onchange = async () => {
-          const value = cat.value.trim();
-          task.category = value || undefined;
-          await persistQuietly();
-        };
-        li.appendChild(cat);
-
-        const del = document.createElement('button');
-        del.className = 'del';
-        del.textContent = 'Remove';
-        del.onclick = () => removeTask(task.id);
-        li.appendChild(del);
-        ul.appendChild(li);
-      });
-      body.appendChild(ul);
-    }
-    groups.appendChild(group);
   });
 
   // Slot dropdown on the task form
@@ -996,6 +1027,7 @@ async function removeSlot(id) {
 async function removeTask(id) {
   state.tasks = state.tasks.filter((t) => t.id !== id);
   await persist();
+  track('task_edit', { action: 'remove' });
 }
 
 /* ---------- wiring ---------- */
@@ -1014,6 +1046,15 @@ document.querySelectorAll('.tab').forEach((tab) => {
 
 window.addEventListener('resize', () => drawWheel());
 
+// The category filter is inline chips on desktop but a collapsible accordion
+// on mobile. <details> open state can't be forced by CSS, so keep it expanded
+// on desktop (summary hidden) and collapsed on mobile, syncing on resize.
+const spinMobileMQ = window.matchMedia('(max-width: 560px)');
+function syncCategoryAccordion() {
+  $('#category-panel').open = !spinMobileMQ.matches;
+}
+spinMobileMQ.addEventListener('change', syncCategoryAccordion);
+
 /* ---------- first-run tour ----------
    Floating cards anchored to the UI they explain, with the rest of the page
    dimmed and the target spotlighted. Completion (or skipping) persists to
@@ -1022,22 +1063,21 @@ window.addEventListener('resize', () => drawWheel());
 const TOUR_STEPS = [
   {
     view: 'manage',
+    target: '#tasks-panel',
+    title: 'Add tasks',
+    text: 'Add all the tasks you need to do, give each one a category (Health, Work, Home…), and the chunk of time it fits in.',
+  },
+  {
+    view: 'manage',
     target: '#slots-panel',
-    prepare: () => { $('#slots-panel').open = true; },
-    title: 'Pick your time chunkz',
+    title: 'Specify your chunks of time',
     text: 'These are the blocks of time you actually get — 20 minutes before a meeting, an hour on a quiet morning. Keep the defaults or add your own.',
   },
   {
     view: 'manage',
-    target: '#tasks-panel',
-    title: 'Add tasks for each chunk',
-    text: 'Give every task a category (Health, Work, Home…) and the chunk it fits in. A few tasks per chunk keeps the wheel interesting.',
-  },
-  {
-    view: 'manage',
     target: 'nav',
-    title: 'Then come spin',
-    text: 'Whenever a chunk of time opens up, head to Spin, pick the chunk you’ve got, and do exactly what the wheel says.',
+    title: 'Then spin the wheel',
+    text: 'Whenever a chunk of time opens up, head to Spin, choose how much time you’ve got, and do exactly what the wheel says. No thinking — only doing.',
   },
 ];
 
@@ -1108,11 +1148,19 @@ function placeTourCard() {
   card.style.width = `${cw}px`;
   const ch = card.offsetHeight;
 
-  let top = r.bottom + 14;
-  if (top + ch > innerHeight - 16) top = Math.max(16, r.top - ch - 14);
+  // 18px clears the target and leaves room for the arrow tail.
+  let top = r.bottom + 18;
+  let above = false;
+  if (top + ch > innerHeight - 16) { top = Math.max(16, r.top - ch - 18); above = true; }
   const left = Math.min(Math.max(16, r.left + r.width / 2 - cw / 2), innerWidth - cw - 16);
   card.style.top = `${top}px`;
   card.style.left = `${left}px`;
+
+  // Aim the arrow tail at the target's horizontal centre, kept inside the card.
+  const arrowX = Math.min(Math.max(r.left + r.width / 2 - left, 22), cw - 22);
+  card.style.setProperty('--arrow-x', `${arrowX}px`);
+  card.classList.toggle('tour-card--above', above);
+  card.classList.toggle('tour-card--below', !above);
 }
 
 /* Settings modal */
@@ -1202,6 +1250,7 @@ $('#task-form').onsubmit = async (e) => {
   $('#task-name').value = '';
   $('#task-name').focus();
   await persist();
+  track('task_edit', { action: 'add' });
 };
 
 async function loadApp() {
@@ -1217,8 +1266,12 @@ async function loadApp() {
   $('#account-section').classList.toggle('hidden', !auth);
   if (auth) $('#account-email').textContent = auth.email;
 
+  // One visit event per authenticated app load (no-op when not signed in).
+  track('visit');
+
   renderSlotPicker();
   renderCategoryPicker();
+  syncCategoryAccordion();
   renderWheelArea();
   renderManage();
   renderStats();

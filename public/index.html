@@ -60,7 +60,15 @@
     <!-- Spin -->
     <section id="view-spin" class="view active">
       <div class="slots" id="slot-picker"></div>
-      <div class="slots categories" id="category-picker"></div>
+      <!-- Plain chip row on desktop; on mobile it collapses behind the
+           summary to keep the wheel and Spin button above the fold. -->
+      <details class="cat-accordion" id="category-panel">
+        <summary>
+          <span class="cat-accordion-label">Filter</span>
+          <span class="cat-accordion-value" id="category-value"></span>
+        </summary>
+        <div class="slots categories" id="category-picker"></div>
+      </details>
 
       <div class="wheel-area">
         <div class="wheel-wrap">
@@ -88,27 +96,27 @@
 
     <!-- Manage -->
     <section id="view-manage" class="view">
-      <details class="panel accordion" id="slots-panel">
-        <summary><h3>Time chunks</h3><span id="slot-summary" class="count"></span></summary>
-        <div class="accordion-body">
-          <ul id="slot-list" class="list"></ul>
-          <form id="slot-form" class="inline-form">
-            <input id="slot-label" type="text" placeholder="Label (e.g. 2 hours)" required>
-            <input id="slot-minutes" type="number" min="1" max="1440" placeholder="Minutes" required>
-            <button class="primary" type="submit">Add chunk</button>
-          </form>
-        </div>
-      </details>
-
       <div class="panel" id="tasks-panel">
         <h3>Tasks</h3>
-        <div id="task-groups"></div>
+        <p class="panel-intro">These are the things that need to get done.</p>
         <form id="task-form" class="inline-form">
           <input id="task-name" type="text" placeholder="Task name" required>
           <input id="task-category" type="text" placeholder="Category" list="category-options" required>
           <datalist id="category-options"></datalist>
           <select id="task-slot"></select>
           <button class="primary" type="submit">Add task</button>
+        </form>
+        <ul id="task-list" class="list"></ul>
+      </div>
+
+      <div class="panel" id="slots-panel">
+        <h3>Time chunks</h3>
+        <p class="panel-intro">These are the times allotted for each task.</p>
+        <ul id="slot-list" class="list"></ul>
+        <form id="slot-form" class="inline-form">
+          <input id="slot-label" type="text" placeholder="Label (e.g. 2 hours)" required>
+          <input id="slot-minutes" type="number" min="1" max="1440" placeholder="Minutes" required>
+          <button class="primary" type="submit">Add chunk</button>
         </form>
       </div>
     </section>

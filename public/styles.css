@@ -153,35 +153,58 @@ nav {
   display: grid; place-items: center;
 }
 
-/* First-run tour */
+/* First-run tour.
+   The card is deliberately inverted — a warm near-black coach-mark with a soft
+   shadow and an arrow tail — so it reads as a guide floating above the app,
+   not as another cream content panel. */
 .tour-overlay {
   position: fixed; inset: 0;
-  background: rgba(29, 26, 22, 0.45);
+  background: rgba(24, 21, 17, 0.55);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
   z-index: 24;
 }
 .tour-spot {
   position: relative !important;
   z-index: 25 !important;
-  box-shadow: 0 0 0 4px var(--accent), 5px 5px 0 var(--border) !important;
+  border-radius: var(--radius);
+  box-shadow: 0 0 0 4px var(--accent), 0 0 0 10px rgba(228, 87, 46, 0.25) !important;
 }
 .tour-card {
+  --tour-bg: #221e19;
+  --tour-fg: #f4eee1;
   position: fixed; z-index: 26;
-  background: var(--panel);
-  border: var(--border-w) solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: 18px 20px;
+  background: var(--tour-bg);
+  color: var(--tour-fg);
+  border-radius: 15px;
+  box-shadow: 0 20px 44px -14px rgba(0, 0, 0, 0.6);
+  padding: 20px 22px;
   animation: modal-pop 0.22s cubic-bezier(0.2, 1.4, 0.4, 1);
 }
-.tour-count {
-  font-size: 11px; font-weight: 600;
-  text-transform: uppercase; letter-spacing: 0.1em;
-  color: var(--muted);
-  margin-bottom: 6px;
+/* Arrow tail — --arrow-x (set in JS) aligns it with the target's centre. */
+.tour-card::after {
+  content: '';
+  position: absolute;
+  left: var(--arrow-x, 50%);
+  transform: translateX(-50%);
+  width: 0; height: 0;
+  border: 9px solid transparent;
 }
-.tour-card h4 { font-family: var(--font-display); font-size: 19px; margin: 0 0 8px; }
-.tour-card p { margin: 0 0 14px; font-size: 14px; line-height: 1.55; }
-.tour-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.tour-card--below::after { top: -18px; border-bottom-color: var(--tour-bg); }
+.tour-card--above::after { bottom: -18px; border-top-color: var(--tour-bg); }
+.tour-count {
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+.tour-card h4 { font-family: var(--font-display); font-size: 20px; margin: 0 0 8px; color: #fffdf7; }
+.tour-card p { margin: 0 0 16px; font-size: 14px; line-height: 1.6; color: rgba(244, 238, 225, 0.82); }
+.tour-actions { display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
+/* Ghost button's default muted grey is invisible on the dark card. */
+.tour-card .ghost { color: rgba(244, 238, 225, 0.6); }
+.tour-card .ghost:hover:not(:disabled) { color: var(--tour-fg); }
+.tour-card .primary { box-shadow: none; border-color: transparent; }
 
 /* ---------------------------------------------------------------------------
    Auth gate
@@ -316,6 +339,11 @@ nav {
 .slots.categories { margin-bottom: 28px; }
 .slots.categories button { padding: 6px 14px; font-size: 13px; }
 
+/* Category filter accordion: on desktop the summary is hidden and JS keeps
+   the panel open, so it renders as the plain chip row above. On mobile
+   (see media query) the summary becomes a tappable pill and the chips collapse. */
+.cat-accordion > summary { display: none; }
+
 .wheel-area { display: flex; flex-direction: column; align-items: center; gap: 26px; }
 .wheel-wrap { position: relative; width: 460px; max-width: 100%; }
 #wheel { width: 100%; height: auto; display: block; filter: var(--wheel-filter); }
@@ -392,8 +420,6 @@ nav {
   margin-bottom: 20px;
   box-shadow: var(--shadow);
 }
-details.panel { padding: 16px 24px; }
-
 .list { list-style: none; margin: 0 0 14px; padding: 0; }
 .list li {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
@@ -402,35 +428,6 @@ details.panel { padding: 16px 24px; }
 }
 .list li:last-child { border-bottom: 0; }
 .list .meta { color: var(--muted); font-size: 13px; }
-
-.group { margin-bottom: 10px; }
-.group h4 { margin: 0; font-family: var(--font-display); font-size: 14px; font-weight: 600; color: var(--text); }
-
-.accordion > summary {
-  display: flex; align-items: center; gap: 10px;
-  cursor: pointer; list-style: none;
-  padding: 6px 0; border-radius: 6px;
-  user-select: none;
-}
-.accordion > summary::-webkit-details-marker { display: none; }
-.accordion > summary:hover h3, .accordion > summary:hover h4 { color: var(--accent); }
-
-.accordion > summary::before {
-  content: '';
-  width: 0; height: 0;
-  border-left: 5px solid var(--muted);
-  border-top: 4px solid transparent;
-  border-bottom: 4px solid transparent;
-  transition: transform 0.15s;
-  flex: none;
-}
-.accordion[open] > summary::before { transform: rotate(90deg); }
-
-.accordion > summary h3 { margin: 0; }
-.accordion > summary .count { color: var(--muted); font-size: 12px; margin-left: auto; font-variant-numeric: tabular-nums; }
-
-.accordion-body { padding-top: 12px; }
-.group .accordion-body { padding-left: 15px; }
 
 /* Forms */
 .inline-form { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -445,12 +442,21 @@ details.panel { padding: 16px 24px; }
 .inline-form input::placeholder { color: var(--muted); }
 .inline-form input:focus, .inline-form select:focus { outline: none; border-color: var(--accent); }
 
-.cat-edit {
-  font: inherit; font-size: 13px; width: 150px; margin-left: auto;
+/* Short explainer under a panel heading. */
+.panel-intro { margin: -4px 0 16px; color: var(--muted); font-size: 14px; }
+
+/* Task rows: name on the left, its chunk + category + Remove on the right. */
+.task-row .task-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.row-controls { display: flex; align-items: center; gap: 8px; flex: none; }
+
+.row-edit {
+  font: inherit; font-size: 13px;
   background: var(--input-bg); color: var(--muted);
   border: 1px solid #cfc4ab; border-radius: 8px; padding: 4px 10px;
 }
-.cat-edit:focus { outline: none; border-color: var(--accent); color: var(--text); }
+.row-edit:focus { outline: none; border-color: var(--accent); color: var(--text); }
+.slot-edit { max-width: 140px; }
+.cat-edit { width: 140px; }
 
 .del { background: transparent; border-color: transparent; color: var(--muted); padding: 4px 8px; box-shadow: none; }
 .del:hover:not(:disabled) { color: var(--bad); border-color: transparent; }
@@ -504,14 +510,51 @@ details.panel { padding: 16px 24px; }
   .setting { flex-wrap: wrap; }
   .timer { font-size: 46px; }
 
-  .panel, details.panel { padding: 16px; }
-  .group .accordion-body { padding-left: 8px; }
+  .panel { padding: 16px; }
 
-  /* Task rows: the name gets its own line; the category input and Remove
-     button share the line below instead of squeezing in beside it. */
-  #task-groups .list li { flex-wrap: wrap; row-gap: 6px; }
-  #task-groups .list li > span:first-child { flex: 1 1 100%; }
-  .cat-edit { margin-left: 0; flex: 1; width: auto; }
+  /* Spin view: keep the wheel and its button above the fold. The category
+     filter collapses into a pill, and the Spin button sits above the wheel. */
+  .cat-accordion { margin-bottom: 18px; }
+  .cat-accordion > summary {
+    display: flex; align-items: center; gap: 8px;
+    list-style: none; cursor: pointer; user-select: none;
+    border: var(--border-w) solid var(--border);
+    border-radius: 999px;
+    padding: 9px 16px;
+    background: var(--panel);
+    box-shadow: var(--btn-shadow);
+    font-size: 14px;
+  }
+  .cat-accordion > summary::-webkit-details-marker { display: none; }
+  .cat-accordion > summary:active { transform: translate(1px, 1px); box-shadow: none; }
+  .cat-accordion-label { color: var(--muted); font-weight: 500; flex: none; }
+  .cat-accordion-value {
+    color: var(--text); font-weight: 600;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .cat-accordion > summary::after {
+    content: ''; margin-left: auto; flex: none;
+    width: 0; height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid var(--muted);
+    transition: transform 0.15s;
+  }
+  .cat-accordion[open] > summary { margin-bottom: 12px; }
+  .cat-accordion[open] > summary::after { transform: rotate(180deg); }
+  .cat-accordion .slots.categories { margin-bottom: 0; }
+
+  #spin-btn { order: -1; }
+
+  /* Task rows: the name gets its own line; the chunk selector, category
+     input, and Remove button share the line below instead of squeezing in
+     beside it. */
+  .task-row { flex-wrap: wrap; row-gap: 8px; }
+  .task-row .task-name { flex: 1 1 100%; }
+  .row-controls { width: 100%; }
+  /* min-width:0 lets the flex controls shrink below their intrinsic size so
+     the chunk selector, category input, and Remove button share one line. */
+  .slot-edit, .cat-edit { flex: 1; min-width: 0; max-width: none; width: auto; }
 
   /* Narrower numeric columns so task/category names keep some room. */
   .table th.num, .table td.num { width: 54px; padding-left: 4px; }
