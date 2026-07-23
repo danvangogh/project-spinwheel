@@ -561,6 +561,54 @@ function segmentAt(clientX, clientY) {
 
 /* ---------- result + timer ---------- */
 
+// The in-flight session (landed task + running timer) survives a refresh.
+// Kept in localStorage in every backend mode — a running timer belongs to
+// this browser tab's session, not the synced account state.
+const LS_ACTIVE = 'timechunkz-active';
+
+function saveActive() {
+  if (!pending) return;
+  lsWrite(LS_ACTIVE, {
+    taskId: pending.task.id,
+    slotId: pending.slot.id,
+    chosen: pending.chosen,
+    timerStartedAt: pending.timerStartedAt,
+  });
+}
+
+function clearActive() {
+  localStorage.removeItem(LS_ACTIVE);
+}
+
+// Rebuild the result panel + timer from a saved session, if one survives.
+// A timer that ran out while the page was closed still counts — reaching
+// 00:00 is the success signal whether or not anyone was watching.
+function restoreActive() {
+  const saved = lsRead(LS_ACTIVE, null);
+  if (!saved) return;
+  const task = state.tasks.find((t) => t.id === saved.taskId);
+  const slot = slotById(saved.slotId);
+  if (!task || !slot) return clearActive(); // task/chunk gone — nothing to resume
+  if (state.selectedSlotId !== slot.id) {
+    state.selectedSlotId = slot.id;
+    pruneSelectedCategories();
+    renderSlotPicker();
+    renderCategoryPicker();
+    renderWheelArea();
+  }
+  showResult(task, saved.chosen);
+  if (!saved.timerStartedAt) return;
+  pending.timerStartedAt = saved.timerStartedAt;
+  saveActive();
+  $('#timer').classList.remove('idle');
+  $('#timer-start').classList.add('hidden');
+  $('#btn-skip').classList.add('hidden');
+  $('#timer-note').classList.remove('hidden');
+  const remaining = Math.round((saved.timerStartedAt + slot.minutes * 60000 - Date.now()) / 1000);
+  if (remaining <= 0) celebrate();
+  else startTimer(remaining);
+}
+
 function showResult(task, chosen = 'spin') {
   const slot = slotById(state.selectedSlotId);
   pending = { task, slot, chosen, timerStartedAt: null };
@@ -584,6 +632,7 @@ function showResult(task, chosen = 'spin') {
   $('#timer-start').classList.remove('hidden');
   $('#btn-skip').classList.remove('hidden');
   $('#timer-note').classList.add('hidden');
+  saveActive();
 }
 
 function showTime(seconds) {
@@ -599,6 +648,7 @@ function hideResult() {
   $('#result').classList.add('hidden');
   stopTimer();
   pending = null;
+  clearActive();
 }
 
 function startTimer(totalSeconds) {
@@ -1312,6 +1362,7 @@ $('#timer-start').onclick = () => {
   if (!pending || pending.timerStartedAt) return;
   ensureAudio(); // unlock audio while we still have a user gesture
   pending.timerStartedAt = Date.now();
+  saveActive();
   $('#timer').classList.remove('idle');
   $('#timer-start').classList.add('hidden');
   $('#btn-skip').classList.add('hidden');
@@ -1373,6 +1424,9 @@ async function loadApp() {
   renderManage();
   renderStats();
   renderDoneToday();
+
+  // Resume a task/timer that was in flight when the page was last unloaded.
+  restoreActive();
 
   // Walk first-time users through setup with the guided tour. New accounts are
   // seeded with example tasks (so the wheel isn't empty), which is why this is
