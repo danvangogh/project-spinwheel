@@ -90,6 +90,7 @@
       <div id="result" class="result hidden">
         <p class="result-label">Work on</p>
         <h2 id="result-task"></h2>
+        <p id="result-once" class="once-note hidden">One-time task — it leaves the wheel when done</p>
         <div id="timer" class="timer"></div>
         <div class="result-actions">
           <button id="timer-start" class="primary">Start timer</button>
@@ -108,9 +109,13 @@
         <p class="panel-intro">These are the things that need to get done.</p>
         <form id="task-form" class="inline-form">
           <input id="task-name" type="text" placeholder="Task name" required>
-          <input id="task-category" type="text" placeholder="Category" list="category-options" required>
+          <input id="task-category" type="text" placeholder="Category (optional)" list="category-options">
           <datalist id="category-options"></datalist>
           <select id="task-slot"></select>
+          <select id="task-type" aria-label="Task type">
+            <option value="ongoing">Ongoing</option>
+            <option value="once">One-time</option>
+          </select>
           <button class="primary" type="submit">Add task</button>
         </form>
         <ul id="task-list" class="list"></ul>
@@ -121,7 +126,6 @@
         <p class="panel-intro">These are the times allotted for each task.</p>
         <ul id="slot-list" class="list"></ul>
         <form id="slot-form" class="inline-form">
-          <input id="slot-label" type="text" placeholder="Label (e.g. 2 hours)" required>
           <input id="slot-minutes" type="number" min="1" max="1440" placeholder="Minutes" required>
           <button class="primary" type="submit">Add chunk</button>
         </form>

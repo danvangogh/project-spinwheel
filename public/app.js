@@ -233,6 +233,17 @@ $('#btn-logout').onclick = async () => {
 };
 
 const uid = () => Math.random().toString(36).slice(2, 9);
+
+// A chunk's label is just its length — there's no separate label field on the
+// form. Whole hours read as hours, everything else in minutes, matching the
+// seeded defaults ('20 min', '1 hour').
+const slotLabelFor = (minutes) => {
+  if (minutes % 60 === 0) {
+    const h = minutes / 60;
+    return h === 1 ? '1 hour' : `${h} hours`;
+  }
+  return `${minutes} min`;
+};
 const tasksForSlot = (slotId) => state.tasks.filter((t) => t.slotId === slotId);
 const slotById = (id) => state.slots.find((s) => s.id === id);
 
@@ -365,19 +376,31 @@ function drawWheel() {
       ctx.fill();
     }
 
-    // Label runs along the segment's midline, reading outward from the hub.
-    // Every label is oriented the same way relative to the wheel, so they
-    // rotate as one rigid piece — like a physical prize wheel.
+    // Label runs along the segment's midline. Labels on the left half of the
+    // wheel are flipped 180° so text is always right way up and readable —
+    // they swap orientation live as the wheel turns.
+    const mid = start + seg / 2;
     ctx.save();
     ctx.translate(cx, cy);
-    ctx.rotate(start + seg / 2);
-    ctx.textAlign = 'right';
+    ctx.rotate(mid);
     ctx.textBaseline = 'middle';
     ctx.fillStyle = theme.label;
     // Thin slices get a slightly smaller face so more of the name survives.
     ctx.font = `${theme.labelWeight} ${tasks.length > 9 ? 13 : 15}px ${theme.fontFamily}`;
     // The label runs inward from the rim and must stop clear of the hub.
-    ctx.fillText(fitText(task.name, r - LABEL_INSET - HUB_RADIUS - 6), r - LABEL_INSET, 0);
+    const text = fitText(task.name, r - LABEL_INSET - HUB_RADIUS - 6);
+    const TAU = Math.PI * 2;
+    const norm = ((mid % TAU) + TAU) % TAU;
+    if (norm > Math.PI / 2 && norm < Math.PI * 1.5) {
+      // Pointing left: flip in place so the text reads left-to-right,
+      // now running from the rim in toward the hub.
+      ctx.rotate(Math.PI);
+      ctx.textAlign = 'left';
+      ctx.fillText(text, -(r - LABEL_INSET), 0);
+    } else {
+      ctx.textAlign = 'right';
+      ctx.fillText(text, r - LABEL_INSET, 0);
+    }
     ctx.restore();
   });
 
@@ -549,6 +572,7 @@ function showResult(task, chosen = 'spin') {
   }
 
   $('#result-task').textContent = task.name;
+  $('#result-once').classList.toggle('hidden', !task.once);
   $('.result-label').textContent = chosen === 'manual' ? 'You picked' : 'Work on';
   $('#result').classList.remove('hidden');
 
@@ -718,6 +742,13 @@ async function record(outcome) {
       : 0,
   });
 
+  // A completed one-time task has served its purpose — retire it from the
+  // wheel. Skips don't remove it: it stays until it's actually done.
+  if (outcome === 'success' && pending.task.once) {
+    state.tasks = state.tasks.filter((t) => t.id !== pending.task.id);
+    await persist();
+  }
+
   log = await api.getLog();
   renderStats();
   renderDoneToday();
@@ -842,6 +873,25 @@ function renderManage() {
       const controls = document.createElement('div');
       controls.className = 'row-controls';
 
+      // Ongoing vs one-time — a one-time task retires from the wheel after
+      // its first success. Same full-persist pattern as the chunk selector.
+      const typeSel = document.createElement('select');
+      typeSel.className = 'row-edit type-edit';
+      [['ongoing', 'Ongoing'], ['once', 'One-time']].forEach(([value, label]) => {
+        const opt = document.createElement('option');
+        opt.value = value;
+        opt.textContent = label;
+        typeSel.appendChild(opt);
+      });
+      typeSel.value = task.once ? 'once' : 'ongoing';
+      typeSel.onchange = async () => {
+        if (typeSel.value === 'once') task.once = true;
+        else delete task.once;
+        await persist();
+        track('task_edit', { action: 'retype' });
+      };
+      controls.appendChild(typeSel);
+
       // Chunk selector — moving a task between chunks without re-adding it.
       const slotSel = document.createElement('select');
       slotSel.className = 'row-edit slot-edit';
@@ -897,7 +947,10 @@ function renderManage() {
   state.slots.forEach((slot) => {
     const count = tasksForSlot(slot.id).length;
     const li = document.createElement('li');
-    li.innerHTML = `<span>${escapeHtml(slot.label)} <span class="meta">${slot.minutes} min · ${count} task${count === 1 ? '' : 's'}</span></span>`;
+    // Labels are minutes-derived now, so only spell the minutes out for
+    // legacy slots whose stored label says something else.
+    const mins = slot.label === slotLabelFor(slot.minutes) ? '' : `${slot.minutes} min · `;
+    li.innerHTML = `<span>${escapeHtml(slot.label)} <span class="meta">${mins}${count} task${count === 1 ? '' : 's'}</span></span>`;
     const del = document.createElement('button');
     del.className = 'del';
     del.textContent = 'Remove';
@@ -1104,7 +1157,7 @@ const TOUR_STEPS = [
     view: 'manage',
     target: '#tasks-panel',
     title: 'Your tasks',
-    text: 'We’ve added a few example tasks to get you started. Edit or delete them, and add your own — give each a category (Work, Home…) and the chunk of time it fits in.',
+    text: 'We’ve added a few example tasks to get you started. Edit or delete them, and add your own — give each a category (Work, Home…) and the chunk of time it fits in. Mark a task One-time and it leaves the wheel once you’ve done it.',
   },
   {
     view: 'manage',
@@ -1270,10 +1323,9 @@ $('#btn-skip').onclick = () => record('skip');
 
 $('#slot-form').onsubmit = async (e) => {
   e.preventDefault();
-  const label = $('#slot-label').value.trim();
   const minutes = parseInt($('#slot-minutes').value, 10);
-  if (!label || !minutes) return;
-  state.slots.push({ id: uid(), label, minutes });
+  if (!minutes || minutes < 1) return;
+  state.slots.push({ id: uid(), label: slotLabelFor(minutes), minutes });
   if (!state.selectedSlotId) state.selectedSlotId = state.slots[0].id;
   e.target.reset();
   await persist();
@@ -1284,8 +1336,15 @@ $('#task-form').onsubmit = async (e) => {
   const name = $('#task-name').value.trim();
   const category = $('#task-category').value.trim();
   const slotId = $('#task-slot').value;
-  if (!name || !category || !slotId) return;
-  state.tasks.push({ id: uid(), name, category, slotId });
+  if (!name || !slotId) return;
+  // Category is optional — like `once`, absence is the default (categoryOf()
+  // shows these as "Uncategorized"), so don't store an empty string.
+  const task = { id: uid(), name, slotId };
+  if (category) task.category = category;
+  // `once` is only ever present-and-true — ongoing tasks simply lack the key,
+  // which is also what makes every pre-existing task ongoing by default.
+  if ($('#task-type').value === 'once') task.once = true;
+  state.tasks.push(task);
   $('#task-name').value = '';
   $('#task-name').focus();
   await persist();

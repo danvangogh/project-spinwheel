@@ -471,6 +471,8 @@ button.loading::after {
 .result { margin-top: 36px; text-align: center; border-top: var(--border-w) solid var(--border); padding-top: 32px; }
 .result-label { color: var(--muted); margin: 0 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 600; }
 .result h2 { font-family: var(--font-display); margin: 0 0 16px; font-size: 30px; letter-spacing: -0.02em; }
+/* Sits between the task name and the timer, so it pulls into the h2's margin. */
+.once-note { margin: -8px 0 16px; color: var(--muted); font-size: 13px; }
 .timer {
   font-size: 58px;
   font-weight: 300;
@@ -561,6 +563,7 @@ button.loading::after {
 .row-edit:focus { outline: none; border-color: var(--accent); color: var(--text); }
 .slot-edit { max-width: 140px; }
 .cat-edit { width: 140px; }
+.type-edit { max-width: 120px; }
 
 .del { background: transparent; border-color: transparent; color: var(--muted); padding: 4px 8px; box-shadow: none; }
 .del:hover:not(:disabled) { color: var(--bad); border-color: transparent; }
@@ -635,10 +638,13 @@ button.loading::after {
      beside it. */
   .task-row { flex-wrap: wrap; row-gap: 8px; }
   .task-row .task-name { flex: 1 1 100%; }
-  .row-controls { width: 100%; }
-  /* min-width:0 lets the flex controls shrink below their intrinsic size so
-     the chunk selector, category input, and Remove button share one line. */
-  .slot-edit, .cat-edit { flex: 1; min-width: 0; max-width: none; width: auto; }
+  .row-controls { width: 100%; flex-wrap: wrap; }
+  /* Four controls don't fit one line on narrow phones without clipping the
+     selects to a single character. Type + chunk keep their natural width with
+     Remove pushed to the right; the category input takes the line below. */
+  .type-edit, .slot-edit { max-width: none; width: auto; }
+  .cat-edit { order: 1; flex: 1 1 100%; min-width: 0; max-width: none; width: auto; }
+  .row-controls .del { margin-left: auto; }
 
   /* Narrower numeric columns so task/category names keep some room. */
   .table th.num, .table td.num { width: 54px; padding-left: 4px; }
